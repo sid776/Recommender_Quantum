@@ -1,0 +1,67 @@
+/* Profile Page Styles */
+.card {
+    border-radius: 10px;
+    border: none;
+    transition: all 0.3s;
+}
+
+.card-header {
+    background-color: #141414;
+    color: #e50914;
+    border-bottom: 1px solid #2d2d2d;
+    border-top-left-radius: 10px !important;
+    border-top-right-radius: 10px !important;
+}
+
+.form-range {
+    height: 6px;
+}
+
+.form-range::-webkit-slider-thumb {
+    background: #e50914;
+}
+
+.form-range::-moz-range-thumb {
+    background: #e50914;
+}
+
+.form-check-input:checked {
+    background-color: #e50914;
+    border-color: #e50914;
+}
+
+.rating-value {
+    font-weight: bold;
+    margin-left: 5px;
+    color: #e50914;
+}
+
+#save-success {
+    background-color: rgba(25, 135, 84, 0.15);
+    color: #198754;
+    border-color: rgba(25, 135, 84, 0.4);
+    border-radius: 10px;
+}
+
+/* About Page Styles */
+.card.shadow {
+    background-color: #141414;
+    color: #fff;
+}
+
+.card.shadow h1, .card.shadow h3 {
+    color: #e50914;
+}
+
+.card.shadow ul {
+    padding-left: 20px;
+}
+
+.card.shadow a {
+    color: #e50914;
+    text-decoration: none;
+}
+
+.card.shadow a:hover {
+    text-decoration: underline;
+} 

@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% block title %}User Profile{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <h1 class="mb-4">Your Profile</h1>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3>Theme Preferences</h3>
+        </div>
+        <div class="card-body">
+            <form id="theme-form">
+                <div class="mb-3">
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input theme-checkbox" type="checkbox" id="action_packed" value="action_packed">
+                        <label class="form-check-label" for="action_packed">Action-Packed</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input theme-checkbox" type="checkbox" id="deep_themes" value="deep_themes">
+                        <label class="form-check-label" for="deep_themes">Deep Themes</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input theme-checkbox" type="checkbox" id="character_driven" value="character_driven">
+                        <label class="form-check-label" for="character_driven">Character-Driven</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input theme-checkbox" type="checkbox" id="dark" value="dark">
+                        <label class="form-check-label" for="dark">Dark</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input theme-checkbox" type="checkbox" id="light_hearted" value="light_hearted">
+                        <label class="form-check-label" for="light_hearted">Light-Hearted</label>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Save Theme Preferences</button>
+            </form>
+        </div>
+    </div>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3>Genre Ratings</h3>
+        </div>
+        <div class="card-body">
+            <form id="genre-form">
+                <div class="mb-3">
+                    <label for="action-rating" class="form-label">Action</label>
+                    <input type="range" class="form-range genre-slider" min="1" max="5" id="action-rating" data-genre="action">
+                    <span class="rating-value">3</span>
+                </div>
+                <div class="mb-3">
+                    <label for="comedy-rating" class="form-label">Comedy</label>
+                    <input type="range" class="form-range genre-slider" min="1" max="5" id="comedy-rating" data-genre="comedy">
+                    <span class="rating-value">3</span>
+                </div>
+                <div class="mb-3">
+                    <label for="drama-rating" class="form-label">Drama</label>
+                    <input type="range" class="form-range genre-slider" min="1" max="5" id="drama-rating" data-genre="drama">
+                    <span class="rating-value">3</span>
+                </div>
+                <div class="mb-3">
+                    <label for="scifi-rating" class="form-label">Sci-Fi</label>
+                    <input type="range" class="form-range genre-slider" min="1" max="5" id="scifi-rating" data-genre="scifi">
+                    <span class="rating-value">3</span>
+                </div>
+                <div class="mb-3">
+                    <label for="thriller-rating" class="form-label">Thriller</label>
+                    <input type="range" class="form-range genre-slider" min="1" max="5" id="thriller-rating" data-genre="thriller">
+                    <span class="rating-value">3</span>
+                </div>
+                <div class="mb-3">
+                    <label for="horror-rating" class="form-label">Horror</label>
+                    <input type="range" class="form-range genre-slider" min="1" max="5" id="horror-rating" data-genre="horror">
+                    <span class="rating-value">3</span>
+                </div>
+                <div class="mb-3">
+                    <label for="romance-rating" class="form-label">Romance</label>
+                    <input type="range" class="form-range genre-slider" min="1" max="5" id="romance-rating" data-genre="romance">
+                    <span class="rating-value">3</span>
+                </div>
+                <button type="submit" class="btn btn-primary">Save Genre Ratings</button>
+            </form>
+        </div>
+    </div>
+    
+    <div class="alert alert-success" id="save-success" style="display: none;">
+        Profile updated successfully!
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Load current profile
+        fetch('/update_profile', {
+            method: 'GET'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Set theme checkboxes
+                if (data.profile.themes) {
+                    data.profile.themes.forEach(theme => {
+                        const checkbox = document.getElementById(theme);
+                        if (checkbox) checkbox.checked = true;
+                    });
+                }
+                
+                // Set genre ratings
+                if (data.profile.genre_ratings) {
+                    Object.entries(data.profile.genre_ratings).forEach(([genre, rating]) => {
+                        const slider = document.querySelector(`[data-genre="${genre}"]`);
+                        if (slider) {
+                            slider.value = rating;
+                            slider.nextElementSibling.textContent = rating;
+                        }
+                    });
+                }
+            }
+        })
+        .catch(error => console.error('Error loading profile:', error));
+        
+        // Update rating display when sliders change
+        document.querySelectorAll('.genre-slider').forEach(slider => {
+            slider.addEventListener('input', function() {
+                this.nextElementSibling.textContent = this.value;
+            });
+        });
+        
+        // Handle theme form submission
+        document.getElementById('theme-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const themes = [];
+            document.querySelectorAll('.theme-checkbox:checked').forEach(checkbox => {
+                themes.push(checkbox.value);
+            });
+            
+            updateProfile({ themes });
+        });
+        
+        // Handle genre form submission
+        document.getElementById('genre-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const genre_ratings = {};
+            document.querySelectorAll('.genre-slider').forEach(slider => {
+                genre_ratings[slider.dataset.genre] = parseInt(slider.value);
+            });
+            
+            updateProfile({ genre_ratings });
+        });
+        
+        function updateProfile(data) {
+            fetch('/update_profile', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const successAlert = document.getElementById('save-success');
+                    successAlert.style.display = 'block';
+                    setTimeout(() => {
+                        successAlert.style.display = 'none';
+                    }, 3000);
+                    
+                    // If we're on the index page with recommendations, reload them
+                    if (window.fetchRecommendations) {
+                        window.fetchRecommendations();
+                    } else {
+                        // Redirect to homepage to see new recommendations
+                        setTimeout(() => {
+                            window.location.href = '/';
+                        }, 1500);
+                    }
+                }
+            })
+            .catch(error => console.error('Error updating profile:', error));
+        }
+    });
+</script>
+{% endblock %} 

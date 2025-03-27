@@ -1,0 +1,23 @@
+{
+  "themes": ["action_packed", "deep_themes"],
+  "genre_ratings": {
+    "action": 5,
+    "comedy": 4,
+    "drama": 3,
+    "scifi": 5,
+    "thriller": 4,
+    "horror": 2,
+    "romance": 3
+  },
+  "favorite_actors": ["Tom Hanks", "Scarlett Johansson", "Leonardo DiCaprio"],
+  "favorite_directors": ["Christopher Nolan", "Steven Spielberg"],
+  "previously_enjoyed": [
+    {"movie_id": 123, "title": "The Matrix", "rating": 5},
+    {"movie_id": 456, "title": "Inception", "rating": 5},
+    {"movie_id": 789, "title": "The Dark Knight", "rating": 4}
+  ],
+  "disliked": [
+    {"movie_id": 321, "title": "The Room", "rating": 1}
+  ],
+  "preferred_eras": ["2000s", "2010s"]
+} 

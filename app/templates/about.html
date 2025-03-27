@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}About Quantum Recommender{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card shadow">
+                <div class="card-body p-5">
+                    <h1 class="mb-4">About Quantum Recommender</h1>
+                    
+                    <h3 class="mb-3">Innovation in Recommendation Systems</h3>
+                    <p>
+                        This platform demonstrates the power of quantum computing applied to recommendation systems.
+                        Traditional recommendation algorithms struggle with the complexity of user preferences and vast content libraries.
+                        Our quantum approach offers significant advantages in understanding patterns and relationships that classical algorithms might miss.
+                    </p>
+                    
+                    <h3 class="mb-3">How It Works</h3>
+                    <p>
+                        Our system uses quantum-inspired algorithms that treat user preferences as quantum states.
+                        This allows us to:
+                    </p>
+                    <ul>
+                        <li>Process complex patterns in user behaviors and preferences</li>
+                        <li>Handle uncertainty in user interests more effectively</li>
+                        <li>Discover non-obvious content relationships</li>
+                        <li>Adapt to changing preferences more dynamically</li>
+                    </ul>
+                    
+                    <h3 class="mb-3">Personal Profiles</h3>
+                    <p>
+                        Our system learns from your viewing habits, explicit ratings, and theme preferences.
+                        The more you interact with the platform, the more personalized your recommendations become.
+                        Visit your <a href="{{ url_for('main.profile') }}">profile page</a> to customize your preferences directly.
+                    </p>
+                    
+                    <h3 class="mb-3">Enhanced Personalization</h3>
+                    <p>
+                        Our system goes beyond typical recommendation engines by considering multiple layers of personalization:
+                    </p>
+                    <ul>
+                        <li><strong>Thematic preferences</strong> - Understanding the types of stories you enjoy beyond just genres</li>
+                        <li><strong>Contextual awareness</strong> - Adapting recommendations based on when and how you watch</li>
+                        <li><strong>Granular genre ratings</strong> - Allowing you to express nuanced preferences for different genres</li>
+                        <li><strong>Quantum-enhanced similarity</strong> - Using quantum computing concepts to find non-obvious connections</li>
+                    </ul>
+                    <p>
+                        Unlike traditional systems that rely solely on "similar users liked this" approaches, our system creates a 
+                        multi-dimensional understanding of both content and your preferences to discover recommendations you might 
+                        never find otherwise.
+                    </p>
+                    
+                    <h3 class="mb-3">Context-Aware Features</h3>
+                    <p>
+                        The system takes into account contextual factors like:
+                    </p>
+                    <ul>
+                        <li>Time of day (different recommendations for morning vs. evening)</li>
+                        <li>Viewing habits (binge watching vs. occasional viewing)</li>
+                        <li>Content themes you enjoy</li>
+                        <li>Genre preferences and ratings</li>
+                    </ul>
+                    
+                    <h3 class="mb-3">Technology Stack</h3>
+                    <p>
+                        Our platform is built using:
+                    </p>
+                    <ul>
+                        <li>Flask web framework</li>
+                        <li>Quantum-inspired algorithms for recommendation generation</li>
+                        <li>User profile management with adaptive learning</li>
+                        <li>Context-aware recommendation filtering</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

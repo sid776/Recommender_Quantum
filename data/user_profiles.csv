@@ -1,0 +1,9 @@
+user_id,age,gender,location,preferred_genre,subscription_type,last_active,country
+1,28,M,US,Sci-Fi,premium,2023-03-20,
+2,35,F,UK,Drama,standard,2023-03-25,
+3,42,M,CA,Crime,premium,2023-04-05,
+4,24,F,AU,Sci-Fi,standard,2023-04-10,
+5,31,M,DE,Fantasy,premium,2023-03-20 ,
+6,36,Other,Global,Thriller,premium,2025-03-26,
+7,36,M,,Action,premium,,AU
+8,30,M,,Thriller,premium,,US

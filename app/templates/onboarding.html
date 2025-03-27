@@ -1,0 +1,568 @@
+{% extends 'base.html' %}
+
+{% block title %}Welcome to QuantumFlix{% endblock %}
+
+{% block content %}
+<div class="onboarding-container">
+    <div class="onboarding-header">
+        <h1>Tell us about yourself</h1>
+        <p>Help us personalize your recommendations with quantum precision</p>
+    </div>
+
+    <form id="onboarding-form" method="POST" action="{{ url_for('main.create_profile') }}">
+        <!-- Demographics -->
+        <div class="question-card active" id="question-1">
+            <h2>Your demographic details</h2>
+            <div class="demographic-grid">
+                <div class="input-group">
+                    <label for="age">Age</label>
+                    <input type="number" name="age" id="age" min="13" max="100" required>
+                </div>
+                <div class="input-group">
+                    <label for="gender">Gender</label>
+                    <select name="gender" id="gender" required>
+                        <option value="" disabled selected>Select</option>
+                        <option value="M">Male</option>
+                        <option value="F">Female</option>
+                        <option value="NB">Non-binary</option>
+                        <option value="O">Other</option>
+                        <option value="P">Prefer not to say</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="location">Location</label>
+                    <select name="location" id="location" required>
+                        <option value="" disabled selected>Select</option>
+                        <option value="US">United States</option>
+                        <option value="UK">United Kingdom</option>
+                        <option value="CA">Canada</option>
+                        <option value="AU">Australia</option>
+                        <option value="IN">India</option>
+                        <option value="EU">Europe</option>
+                        <option value="AS">Asia</option>
+                        <option value="AF">Africa</option>
+                        <option value="SA">South America</option>
+                        <option value="OT">Other</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="occupation">Occupation</label>
+                    <select name="occupation" id="occupation" required>
+                        <option value="" disabled selected>Select</option>
+                        <option value="student">Student</option>
+                        <option value="tech">Technology</option>
+                        <option value="creative">Creative/Arts</option>
+                        <option value="business">Business</option>
+                        <option value="healthcare">Healthcare</option>
+                        <option value="education">Education</option>
+                        <option value="service">Service Industry</option>
+                        <option value="retired">Retired</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+            </div>
+            <button type="button" class="next-btn">Next</button>
+        </div>
+
+        <!-- Genre Preferences -->
+        <div class="question-card" id="question-2">
+            <h2>What genres do you enjoy?</h2>
+            <p>Select all that apply, and rate how much you like each one</p>
+            <div class="genre-rating-grid">
+                <div class="genre-rating">
+                    <label>Sci-Fi</label>
+                    <div class="rating-stars">
+                        <input type="radio" name="genre_scifi" id="scifi-1" value="1">
+                        <label for="scifi-1">1</label>
+                        <input type="radio" name="genre_scifi" id="scifi-2" value="2">
+                        <label for="scifi-2">2</label>
+                        <input type="radio" name="genre_scifi" id="scifi-3" value="3">
+                        <label for="scifi-3">3</label>
+                        <input type="radio" name="genre_scifi" id="scifi-4" value="4">
+                        <label for="scifi-4">4</label>
+                        <input type="radio" name="genre_scifi" id="scifi-5" value="5">
+                        <label for="scifi-5">5</label>
+                    </div>
+                </div>
+                <div class="genre-rating">
+                    <label>Drama</label>
+                    <div class="rating-stars">
+                        <input type="radio" name="genre_drama" id="drama-1" value="1">
+                        <label for="drama-1">1</label>
+                        <input type="radio" name="genre_drama" id="drama-2" value="2">
+                        <label for="drama-2">2</label>
+                        <input type="radio" name="genre_drama" id="drama-3" value="3">
+                        <label for="drama-3">3</label>
+                        <input type="radio" name="genre_drama" id="drama-4" value="4">
+                        <label for="drama-4">4</label>
+                        <input type="radio" name="genre_drama" id="drama-5" value="5">
+                        <label for="drama-5">5</label>
+                    </div>
+                </div>
+                <div class="genre-rating">
+                    <label>Comedy</label>
+                    <div class="rating-stars">
+                        <input type="radio" name="genre_comedy" id="comedy-1" value="1">
+                        <label for="comedy-1">1</label>
+                        <input type="radio" name="genre_comedy" id="comedy-2" value="2">
+                        <label for="comedy-2">2</label>
+                        <input type="radio" name="genre_comedy" id="comedy-3" value="3">
+                        <label for="comedy-3">3</label>
+                        <input type="radio" name="genre_comedy" id="comedy-4" value="4">
+                        <label for="comedy-4">4</label>
+                        <input type="radio" name="genre_comedy" id="comedy-5" value="5">
+                        <label for="comedy-5">5</label>
+                    </div>
+                </div>
+                <div class="genre-rating">
+                    <label>Action</label>
+                    <div class="rating-stars">
+                        <input type="radio" name="genre_action" id="action-1" value="1">
+                        <label for="action-1">1</label>
+                        <input type="radio" name="genre_action" id="action-2" value="2">
+                        <label for="action-2">2</label>
+                        <input type="radio" name="genre_action" id="action-3" value="3">
+                        <label for="action-3">3</label>
+                        <input type="radio" name="genre_action" id="action-4" value="4">
+                        <label for="action-4">4</label>
+                        <input type="radio" name="genre_action" id="action-5" value="5">
+                        <label for="action-5">5</label>
+                    </div>
+                </div>
+                <div class="genre-rating">
+                    <label>Thriller</label>
+                    <div class="rating-stars">
+                        <input type="radio" name="genre_thriller" id="thriller-1" value="1">
+                        <label for="thriller-1">1</label>
+                        <input type="radio" name="genre_thriller" id="thriller-2" value="2">
+                        <label for="thriller-2">2</label>
+                        <input type="radio" name="genre_thriller" id="thriller-3" value="3">
+                        <label for="thriller-3">3</label>
+                        <input type="radio" name="genre_thriller" id="thriller-4" value="4">
+                        <label for="thriller-4">4</label>
+                        <input type="radio" name="genre_thriller" id="thriller-5" value="5">
+                        <label for="thriller-5">5</label>
+                    </div>
+                </div>
+                <div class="genre-rating">
+                    <label>Horror</label>
+                    <div class="rating-stars">
+                        <input type="radio" name="genre_horror" id="horror-1" value="1">
+                        <label for="horror-1">1</label>
+                        <input type="radio" name="genre_horror" id="horror-2" value="2">
+                        <label for="horror-2">2</label>
+                        <input type="radio" name="genre_horror" id="horror-3" value="3">
+                        <label for="horror-3">3</label>
+                        <input type="radio" name="genre_horror" id="horror-4" value="4">
+                        <label for="horror-4">4</label>
+                        <input type="radio" name="genre_horror" id="horror-5" value="5">
+                        <label for="horror-5">5</label>
+                    </div>
+                </div>
+                <div class="genre-rating">
+                    <label>Fantasy</label>
+                    <div class="rating-stars">
+                        <input type="radio" name="genre_fantasy" id="fantasy-1" value="1">
+                        <label for="fantasy-1">1</label>
+                        <input type="radio" name="genre_fantasy" id="fantasy-2" value="2">
+                        <label for="fantasy-2">2</label>
+                        <input type="radio" name="genre_fantasy" id="fantasy-3" value="3">
+                        <label for="fantasy-3">3</label>
+                        <input type="radio" name="genre_fantasy" id="fantasy-4" value="4">
+                        <label for="fantasy-4">4</label>
+                        <input type="radio" name="genre_fantasy" id="fantasy-5" value="5">
+                        <label for="fantasy-5">5</label>
+                    </div>
+                </div>
+                <div class="genre-rating">
+                    <label>Romance</label>
+                    <div class="rating-stars">
+                        <input type="radio" name="genre_romance" id="romance-1" value="1">
+                        <label for="romance-1">1</label>
+                        <input type="radio" name="genre_romance" id="romance-2" value="2">
+                        <label for="romance-2">2</label>
+                        <input type="radio" name="genre_romance" id="romance-3" value="3">
+                        <label for="romance-3">3</label>
+                        <input type="radio" name="genre_romance" id="romance-4" value="4">
+                        <label for="romance-4">4</label>
+                        <input type="radio" name="genre_romance" id="romance-5" value="5">
+                        <label for="romance-5">5</label>
+                    </div>
+                </div>
+            </div>
+            <div class="nav-buttons">
+                <button type="button" class="back-btn">Back</button>
+                <button type="button" class="next-btn">Next</button>
+            </div>
+        </div>
+
+        <!-- Content Tags / Themes -->
+        <div class="question-card" id="question-3">
+            <h2>Which themes and elements do you enjoy?</h2>
+            <p>Select all that appeal to you</p>
+            <div class="tags-container">
+                <div class="tag-option">
+                    <input type="checkbox" name="themes" id="theme-action" value="action_packed">
+                    <label for="theme-action">Action-packed</label>
+                </div>
+                <div class="tag-option">
+                    <input type="checkbox" name="themes" id="theme-deep" value="deep_themes">
+                    <label for="theme-deep">Deep themes</label>
+                </div>
+                <div class="tag-option">
+                    <input type="checkbox" name="themes" id="theme-character" value="character_driven">
+                    <label for="theme-character">Character-driven</label>
+                </div>
+                <div class="tag-option">
+                    <input type="checkbox" name="themes" id="theme-plot" value="plot_twists">
+                    <label for="theme-plot">Plot twists</label>
+                </div>
+                <div class="tag-option">
+                    <input type="checkbox" name="themes" id="theme-emotional" value="emotional">
+                    <label for="theme-emotional">Emotional</label>
+                </div>
+                <div class="tag-option">
+                    <input type="checkbox" name="themes" id="theme-dark" value="dark">
+                    <label for="theme-dark">Dark themes</label>
+                </div>
+                <div class="tag-option">
+                    <input type="checkbox" name="themes" id="theme-light" value="light_hearted">
+                    <label for="theme-light">Light-hearted</label>
+                </div>
+                <div class="tag-option">
+                    <input type="checkbox" name="themes" id="theme-intellectual" value="intellectual">
+                    <label for="theme-intellectual">Intellectual</label>
+                </div>
+                <div class="tag-option">
+                    <input type="checkbox" name="themes" id="theme-historical" value="historical">
+                    <label for="theme-historical">Historical</label>
+                </div>
+                <div class="tag-option">
+                    <input type="checkbox" name="themes" id="theme-political" value="political">
+                    <label for="theme-political">Political</label>
+                </div>
+                <div class="tag-option">
+                    <input type="checkbox" name="themes" id="theme-visuals" value="visual_effects">
+                    <label for="theme-visuals">Visual effects</label>
+                </div>
+                <div class="tag-option">
+                    <input type="checkbox" name="themes" id="theme-documentary" value="documentary">
+                    <label for="theme-documentary">Documentary</label>
+                </div>
+            </div>
+            <div class="nav-buttons">
+                <button type="button" class="back-btn">Back</button>
+                <button type="button" class="next-btn">Next</button>
+            </div>
+        </div>
+
+        <!-- Viewing Habits -->
+        <div class="question-card" id="question-4">
+            <h2>Your viewing habits</h2>
+            
+            <div class="habit-section">
+                <h3>How do you typically watch?</h3>
+                <div class="option-group">
+                    <div class="watch-option">
+                        <input type="radio" name="watch_habit" id="binge" value="binge" required>
+                        <label for="binge">
+                            <i class="fas fa-fire"></i>
+                            <span>Binge Watch</span>
+                            <small>I watch multiple episodes in one sitting</small>
+                        </label>
+                    </div>
+                    <div class="watch-option">
+                        <input type="radio" name="watch_habit" id="weekly" value="weekly">
+                        <label for="weekly">
+                            <i class="fas fa-calendar-alt"></i>
+                            <span>Weekly Viewer</span>
+                            <small>I prefer to space out episodes</small>
+                        </label>
+                    </div>
+                    <div class="watch-option">
+                        <input type="radio" name="watch_habit" id="casual" value="casual">
+                        <label for="casual">
+                            <i class="fas fa-couch"></i>
+                            <span>Casual Viewer</span>
+                            <small>I watch whenever I have time</small>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="habit-section">
+                <h3>When do you usually watch?</h3>
+                <div class="time-options">
+                    <div class="time-option">
+                        <input type="radio" name="viewing_time" id="morning" value="morning" required>
+                        <label for="morning">Morning</label>
+                    </div>
+                    <div class="time-option">
+                        <input type="radio" name="viewing_time" id="afternoon" value="afternoon">
+                        <label for="afternoon">Afternoon</label>
+                    </div>
+                    <div class="time-option">
+                        <input type="radio" name="viewing_time" id="evening" value="evening">
+                        <label for="evening">Evening</label>
+                    </div>
+                    <div class="time-option">
+                        <input type="radio" name="viewing_time" id="late-night" value="late-night">
+                        <label for="late-night">Late Night</label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="habit-section">
+                <h3>Average watch time per session</h3>
+                <div class="duration-slider">
+                    <input type="range" name="session_duration" min="30" max="240" step="30" value="120" id="duration-slider">
+                    <div class="duration-display">
+                        <span id="duration-value">120</span> minutes
+                    </div>
+                </div>
+            </div>
+
+            <div class="nav-buttons">
+                <button type="button" class="back-btn">Back</button>
+                <button type="button" class="next-btn">Next</button>
+            </div>
+        </div>
+
+        <!-- Favorite Shows -->
+        <div class="question-card" id="question-5">
+            <h2>What have you enjoyed in the past?</h2>
+            <p>Select at least 3 shows or movies you've watched and enjoyed</p>
+            <div class="show-grid">
+                <div class="show-option">
+                    <input type="checkbox" name="favorites" id="show-1" value="1">
+                    <label for="show-1">Stranger Things</label>
+                </div>
+                <div class="show-option">
+                    <input type="checkbox" name="favorites" id="show-2" value="2">
+                    <label for="show-2">The Crown</label>
+                </div>
+                <div class="show-option">
+                    <input type="checkbox" name="favorites" id="show-3" value="3">
+                    <label for="show-3">Money Heist</label>
+                </div>
+                <div class="show-option">
+                    <input type="checkbox" name="favorites" id="show-4" value="4">
+                    <label for="show-4">Breaking Bad</label>
+                </div>
+                <div class="show-option">
+                    <input type="checkbox" name="favorites" id="show-5" value="5">
+                    <label for="show-5">Dark</label>
+                </div>
+                <div class="show-option">
+                    <input type="checkbox" name="favorites" id="show-10" value="10">
+                    <label for="show-10">The Witcher</label>
+                </div>
+                <div class="show-option">
+                    <input type="checkbox" name="favorites" id="show-11" value="11">
+                    <label for="show-11">Squid Game</label>
+                </div>
+                <div class="show-option">
+                    <input type="checkbox" name="favorites" id="show-23" value="23">
+                    <label for="show-23">Game of Thrones</label>
+                </div>
+                <div class="show-option">
+                    <input type="checkbox" name="favorites" id="show-24" value="24">
+                    <label for="show-24">True Detective</label>
+                </div>
+                <div class="show-option">
+                    <input type="checkbox" name="favorites" id="show-29" value="29">
+                    <label for="show-29">The Boys</label>
+                </div>
+                <div class="show-option">
+                    <input type="checkbox" name="favorites" id="show-31" value="31">
+                    <label for="show-31">Interstellar</label>
+                </div>
+                <div class="show-option">
+                    <input type="checkbox" name="favorites" id="show-35" value="35">
+                    <label for="show-35">The Matrix</label>
+                </div>
+            </div>
+            <div class="nav-buttons">
+                <button type="button" class="back-btn">Back</button>
+                <button type="submit" class="submit-btn">Create My Profile</button>
+            </div>
+        </div>
+    </form>
+
+    <div class="onboarding-progress">
+        <div class="progress-bar">
+            <div class="progress" style="width: 20%"></div>
+        </div>
+        <div class="progress-steps">
+            <span class="step active">1</span>
+            <span class="step">2</span>
+            <span class="step">3</span>
+            <span class="step">4</span>
+            <span class="step">5</span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const cards = document.querySelectorAll('.question-card');
+        const nextButtons = document.querySelectorAll('.next-btn');
+        const backButtons = document.querySelectorAll('.back-btn');
+        const progress = document.querySelector('.progress');
+        const steps = document.querySelectorAll('.step');
+        const form = document.getElementById('onboarding-form');
+        const favoriteCheckboxes = document.querySelectorAll('input[name="favorites"]');
+        const durationSlider = document.getElementById('duration-slider');
+        const durationValue = document.getElementById('duration-value');
+        
+        let currentQuestion = 1;
+        const totalQuestions = cards.length;
+        
+        // Duration slider
+        if (durationSlider) {
+            durationSlider.addEventListener('input', function() {
+                durationValue.textContent = this.value;
+            });
+        }
+        
+        // Update progress display
+        function updateProgress(questionNumber) {
+            const progressPercent = (questionNumber / totalQuestions) * 100;
+            progress.style.width = `${progressPercent}%`;
+            
+            // Update step indicators
+            steps.forEach((step, index) => {
+                if (index + 1 <= questionNumber) {
+                    step.classList.add('active');
+                } else {
+                    step.classList.remove('active');
+                }
+            });
+        }
+        
+        // Move to next question
+        nextButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // Validate current card inputs
+                const currentCard = document.getElementById(`question-${currentQuestion}`);
+                const requiredInputs = currentCard.querySelectorAll('input[required], select[required]');
+                let isValid = true;
+                
+                requiredInputs.forEach(input => {
+                    if (input.type === 'radio') {
+                        const radioGroup = document.querySelectorAll(`input[name="${input.name}"]`);
+                        if (!Array.from(radioGroup).some(radio => radio.checked)) {
+                            isValid = false;
+                        }
+                    } else if (!input.value) {
+                        isValid = false;
+                    }
+                });
+                
+                // For question 3, ensure at least one theme is selected
+                if (currentQuestion === 3) {
+                    const checkedThemes = document.querySelectorAll('input[name="themes"]:checked');
+                    if (checkedThemes.length < 1) {
+                        alert('Please select at least one theme that interests you');
+                        return;
+                    }
+                }
+                
+                // For question 5, ensure at least 3 favorites are selected
+                if (currentQuestion === 5) {
+                    const checkedFavorites = document.querySelectorAll('input[name="favorites"]:checked');
+                    if (checkedFavorites.length < 3) {
+                        alert('Please select at least 3 favorite shows or movies');
+                        return;
+                    }
+                }
+                
+                if (!isValid) {
+                    alert('Please fill out all required fields');
+                    return;
+                }
+                
+                // Move to next question
+                currentCard.classList.remove('active');
+                currentQuestion++;
+                document.getElementById(`question-${currentQuestion}`).classList.add('active');
+                updateProgress(currentQuestion);
+            });
+        });
+        
+        // Move to previous question
+        backButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                document.getElementById(`question-${currentQuestion}`).classList.remove('active');
+                currentQuestion--;
+                document.getElementById(`question-${currentQuestion}`).classList.add('active');
+                updateProgress(currentQuestion);
+            });
+        });
+        
+        // Form submission
+        form.addEventListener('submit', function(event) {
+            event.preventDefault();
+            
+            // Validate final form
+            const checkedFavorites = document.querySelectorAll('input[name="favorites"]:checked');
+            if (checkedFavorites.length < 3) {
+                alert('Please select at least 3 favorite shows or movies');
+                return;
+            }
+            
+            // Determine preferred genre based on highest rating
+            let highestRating = 0;
+            let preferredGenre = '';
+            const genreRatings = [
+                { name: 'Sci-Fi', radioName: 'genre_scifi' },
+                { name: 'Drama', radioName: 'genre_drama' },
+                { name: 'Action', radioName: 'genre_action' },
+                { name: 'Thriller', radioName: 'genre_thriller' },
+                { name: 'Horror', radioName: 'genre_horror' },
+                { name: 'Fantasy', radioName: 'genre_fantasy' },
+                { name: 'Romance', radioName: 'genre_romance' },
+                { name: 'Comedy', radioName: 'genre_comedy' }
+            ];
+            
+            genreRatings.forEach(genre => {
+                const selectedRating = document.querySelector(`input[name="${genre.radioName}"]:checked`);
+                if (selectedRating && parseInt(selectedRating.value) > highestRating) {
+                    highestRating = parseInt(selectedRating.value);
+                    preferredGenre = genre.name;
+                }
+            });
+            
+            // Add preferred genre to form data if found
+            if (preferredGenre) {
+                const hiddenInput = document.createElement('input');
+                hiddenInput.type = 'hidden';
+                hiddenInput.name = 'preferred_genre';
+                hiddenInput.value = preferredGenre;
+                form.appendChild(hiddenInput);
+            }
+            
+            // Submit form data
+            const formData = new FormData(form);
+            fetch(form.action, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.href = data.redirect;
+                } else {
+                    alert('Error creating profile: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+            });
+        });
+    });
+</script>
+{% endblock %} 

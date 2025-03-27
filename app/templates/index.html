@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<div class="hero">
+    <div class="hero-content">
+        <div class="hero-title">Welcome to QuantumFlix</div>
+        <div class="hero-subtitle">Recommendations powered by quantum computing</div>
+        <p class="hero-description">
+            Experience the future of content recommendation with our quantum-powered algorithm.
+            Discover new shows and movies tailored to your unique preferences with unprecedented accuracy.
+        </p>
+        <div class="hero-buttons">
+            <button class="play-button"><i class="fas fa-play"></i> Play</button>
+            <button class="info-button"><i class="fas fa-info-circle"></i> More Info</button>
+        </div>
+    </div>
+</div>
+
+<section class="content-section">
+    <h2 class="section-title">Recommended for You</h2>
+    <div class="movie-slider" id="recommendations-slider">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p>Loading quantum recommendations...</p>
+        </div>
+        <!-- Movies will be loaded here via JavaScript -->
+    </div>
+</section>
+
+<section class="content-section">
+    <h2 class="section-title">Popular on QuantumFlix</h2>
+    <div class="movie-slider" id="popular-slider">
+        <!-- Placeholder for popular content -->
+    </div>
+</section>
+
+<section class="content-section">
+    <h2 class="section-title">Continue Watching</h2>
+    <div class="movie-slider" id="continue-watching-slider">
+        <!-- Placeholder for continue watching -->
+    </div>
+</section>
+
+<div id="movie-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-modal">&times;</span>
+        <div class="modal-header">
+            <h2 id="modal-title">Movie Title</h2>
+            <div class="modal-info">
+                <span id="modal-year">2023</span>
+                <span id="modal-runtime">2h 15m</span>
+                <span id="modal-rating">8.5</span>
+            </div>
+        </div>
+        <div class="modal-body">
+            <div id="modal-genre" class="tag">Genre</div>
+            <p id="modal-description">Movie description will appear here.</p>
+            
+            <div class="modal-quantum-info">
+                <h3>Quantum Recommendation Analysis</h3>
+                <div class="quantum-stats">
+                    <div class="stat">
+                        <span class="stat-label">Match Score:</span>
+                        <span id="modal-quantum-score" class="stat-value">95%</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Engine:</span>
+                        <span id="modal-engine-type" class="stat-value">Quantum Circuit</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-buttons">
+                <button class="play-button"><i class="fas fa-play"></i> Play</button>
+                <button class="list-button"><i class="fas fa-plus"></i> My List</button>
+                <button class="rate-button"><i class="fas fa-thumbs-up"></i> Rate</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Modal will be handled by main.js
+</script>
+{% endblock %} 
