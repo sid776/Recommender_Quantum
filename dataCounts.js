@@ -69,32 +69,32 @@ import {
   getValuationRunCount,
 } from '../../api/api';
 ######################################################################################
-const API = import.meta.env.VITE_API_BASE || ''; // or set a Vite proxy
+const API = 'http://127.0.0.1:8000';  // single source of truth
 
 const okJson = async (res) => {
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`${res.status} ${res.statusText} ${text && `- ${text.slice(0,120)}`}`);
+  }
   return res.json();
 };
 
-// /api/valuation/reports/book_counts
+// GET /api/valuation/reports/book_counts  -> [{ book, count }]
 export const getValuationBookCounts = () =>
   fetch(`${API}/api/valuation/reports/book_counts`).then(okJson);
 
-// /api/valuation/reports/riskshocks_counts
+// GET /api/valuation/reports/riskshocks_counts  -> [{ risk_factor, curve, count }]
 export const getRiskShocksCounts = () =>
   fetch(`${API}/api/valuation/reports/riskshocks_counts`).then(okJson);
 
-// /api/valuation/reports/sensitivities/book_counts
+// GET /api/valuation/reports/sensitivities/book_counts -> [{ book, count }]
 export const getSensitivitiesBookCounts = () =>
   fetch(`${API}/api/valuation/reports/sensitivities/book_counts`).then(okJson);
 
-// /api/valuation/reports/sensitivity/pnl
+// GET /api/valuation/reports/sensitivity/pnl -> [{ book, pnl, reval_pnl }]
 export const getSensitivityPnl = () =>
   fetch(`${API}/api/valuation/reports/sensitivity/pnl`).then(okJson);
 
-// /api/valuation/reports/run_counts
+// GET /api/valuation/reports/run_counts -> { run_count: N }
 export const getValuationRunCounts = () =>
   fetch(`${API}/api/valuation/reports/run_counts`).then(okJson);
-
-
-
