@@ -1,0 +1,11 @@
+import { LicenseManager } from "ag-grid-enterprise";
+
+const key =
+  (typeof window !== 'undefined' && window.AG_GRID_LICENSE_KEY) ||
+  import.meta.env?.VITE_AG_GRID_LICENSE_KEY || '';
+
+if (key) {
+  LicenseManager.setLicenseKey(key);
+} else {
+  console.warn('AG Grid license key missing; running without enterprise features.');
+}
