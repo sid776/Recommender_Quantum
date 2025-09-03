@@ -1,0 +1,40 @@
+// ---- Aliases so legacy names keep working ----
+export { getBookHierarchy as getBooksHierarchy };
+export { getVarModelByName as getVaRModelByName };
+
+// ---- (Optional) Hook shim if some files import { useFetch } from 'api' ----
+import { useEffect, useState } from "react";
+
+export function useFetch(pathOrAbsoluteUrl) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!pathOrAbsoluteUrl) return;
+
+    const url = pathOrAbsoluteUrl.startsWith('http')
+      ? pathOrAbsoluteUrl
+      : `${API}${pathOrAbsoluteUrl}`;
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        setLoading(true);
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+        const json = await res.json();
+        if (!cancelled) setData(json);
+      } catch (e) {
+        if (!cancelled) setError(e);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [pathOrAbsoluteUrl]);
+
+  return { data, loading, error };
+}
