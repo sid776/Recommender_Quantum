@@ -68,5 +68,33 @@ import {
   getSensitivityPnl,
   getValuationRunCount,
 } from '../../api/api';
+######################################################################################
+const API = import.meta.env.VITE_API_BASE || ''; // or set a Vite proxy
+
+const okJson = async (res) => {
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return res.json();
+};
+
+// /api/valuation/reports/book_counts
+export const getValuationBookCounts = () =>
+  fetch(`${API}/api/valuation/reports/book_counts`).then(okJson);
+
+// /api/valuation/reports/riskshocks_counts
+export const getRiskShocksCounts = () =>
+  fetch(`${API}/api/valuation/reports/riskshocks_counts`).then(okJson);
+
+// /api/valuation/reports/sensitivities/book_counts
+export const getSensitivitiesBookCounts = () =>
+  fetch(`${API}/api/valuation/reports/sensitivities/book_counts`).then(okJson);
+
+// /api/valuation/reports/sensitivity/pnl
+export const getSensitivityPnl = () =>
+  fetch(`${API}/api/valuation/reports/sensitivity/pnl`).then(okJson);
+
+// /api/valuation/reports/run_counts
+export const getValuationRunCounts = () =>
+  fetch(`${API}/api/valuation/reports/run_counts`).then(okJson);
+
 
 
