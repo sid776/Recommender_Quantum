@@ -1,0 +1,69 @@
+from typing import List, Dict, Union, Optional
+from datetime import date, datetime
+from ninja import Router
+from core.db import DBConnection
+
+router = Router(tags=["DQ Reports"])
+
+CATALOG = "niwa_dev_gold"   # adjust if needed
+
+# Build fully-qualified view name once
+def fqv(view_tail: str) -> str:
+    # incoming names were: ww_smbc_marx_validation_<...>_report
+    return f"{CATALOG}.{view_tail}"
+
+def _latest(db: DBConnection, view_fqn: str) -> str:
+    q = f"SELECT max(report_date) AS d FROM {view_fqn}"
+    d = db.execute(q, df=True).values[0][0]
+    if isinstance(d, datetime):  # normalize
+        d = d.date()
+    return str(d)
+
+def _fetch(view_fqn: str, rep_dt: Optional[str], cols: str = "*", limit: Optional[int] = None):
+    with DBConnection() as db:
+        day = rep_dt or _latest(db, view_fqn)
+        lim = f" LIMIT {int(limit)}" if limit else ""
+        q = f"""
+            SELECT {cols}
+            FROM {view_fqn}
+            WHERE CAST(report_date AS date) = CAST('{day}' AS date)
+            {lim}
+        """
+        return db.execute(q, df=True)
+
+# ---- endpoints (all identical pattern; only view tail changes) ----
+@router.get("/summary", response=List[Dict[str, Union[str, int, float]]])
+def get_summary(request, report_date: Optional[date] = None, limit: int = 500):
+    df = _fetch(fqv("ww_smbc_marx_validation_summary_report"),
+                report_date.isoformat() if report_date else None, limit=limit)
+    return df.to_dict(orient="records")
+
+@router.get("/staleness", response=List[Dict[str, Union[str, int, float]]])
+def get_staleness(request, report_date: Optional[date] = None, limit: int = 500):
+    df = _fetch(fqv("ww_smbc_marx_validation_staleness_report"),
+                report_date.isoformat() if report_date else None, limit=limit)
+    return df.to_dict(orient="records")
+
+@router.get("/outliers", response=List[Dict[str, Union[str, int, float]]])
+def get_outliers(request, report_date: Optional[date] = None, limit: int = 500):
+    df = _fetch(fqv("ww_smbc_marx_validation_outlier_report"),
+                report_date.isoformat() if report_date else None, limit=limit)
+    return df.to_dict(orient="records")
+
+@router.get("/availability", response=List[Dict[str, Union[str, int, float]]])
+def get_availability(request, report_date: Optional[date] = None, limit: int = 500):
+    df = _fetch(fqv("ww_smbc_marx_validation_availability_report"),
+                report_date.isoformat() if report_date else None, limit=limit)
+    return df.to_dict(orient="records")
+
+@router.get("/reasonability", response=List[Dict[str, Union[str, int, float]]])
+def get_reasonability(request, report_date: Optional[date] = None, limit: int = 500):
+    df = _fetch(fqv("ww_smbc_marx_validation_reasonability_report"),
+                report_date.isoformat() if report_date else None, limit=limit)
+    return df.to_dict(orient="records")
+
+@router.get("/schema", response=List[Dict[str, Union[str, int, float]]])
+def get_schema(request, report_date: Optional[date] = None, limit: int = 500):
+    df = _fetch(fqv("ww_smbc_marx_validation_schema_report"),
+                report_date.isoformat() if report_date else None, limit=limit)
+    return df.to_dict(orient="records")
