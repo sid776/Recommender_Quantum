@@ -1,0 +1,59 @@
+# dq_stats.py
+from datetime import date, datetime
+from typing import Dict, List, Optional, Union
+from ninja import Router
+from core.db import DBConnection
+
+router = Router(tags=["DQ Reports"])
+
+# Correct catalog
+CATALOG = "niwa_dev.gold"   # adjust via env if needed
+
+def fqn(view_tail: str) -> str:
+    """Build fully-qualified view name once."""
+    return f"{CATALOG}.{view_tail}"
+
+def _latest(db: DBConnection, view_fqn: str) -> date:
+    """Return latest available report_date as a date."""
+    q = f"SELECT max(CAST(report_date AS date)) AS d FROM {view_fqn}"
+    d = db.execute(q, df=True).values[0][0]
+    if isinstance(d, datetime):
+        d = d.date()
+    return d
+
+def _fetch(view_tail: str,
+           rep_dt: Optional[date] = None,
+           cols: str = "*",
+           limit: Optional[int] = None):
+    """Common fetch for all DQ views."""
+    view = fqn(view_tail)
+    with DBConnection() as db:
+        day = rep_dt or _latest(db, view)
+
+        lim = f" LIMIT {int(limit)}" if limit else ""
+        q = (
+            f"SELECT {cols} FROM {view} "
+            f"WHERE CAST(report_date AS date) = DATE '{day.isoformat()}'"
+            f"{lim}"
+        )
+        return db.execute(q, df=True)
+
+# ----------------- endpoints -----------------
+
+@router.get("/summary", response=List[Dict[str, Union[str, int, float]]])
+def get_summary(report_date: Optional[date] = None, limit: int = 500):
+    df = _fetch("vw_smbc_marx_validation_summary_report",
+                rep_dt=report_date, limit=limit)
+    return df.to_dict(orient="records")
+
+@router.get("/staleness", response=List[Dict[str, Union[str, int, float]]])
+def get_staleness(report_date: Optional[date] = None, limit: int = 500):
+    df = _fetch("vw_smbc_marx_validation_staleness_report",
+                rep_dt=report_date, limit=limit)
+    return df.to_dict(orient="records")
+
+@router.get("/outliers", response=List[Dict[str, Union[str, int, float]]])
+def get_outliers(report_date: Optional[date] = None, limit: int = 500):
+    df = _fetch("vw_smbc_marx_validation_outlier_report",
+                rep_dt=report_date, limit=limit)
+    return df.to_dict(orient="records")
