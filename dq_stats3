@@ -1,59 +1,129 @@
-# dq_stats.py
-from datetime import date, datetime
-from typing import Dict, List, Optional, Union
+# dq_reports.py
+from datetime import date
+from typing import Dict, List, Union, Optional
 from ninja import Router
 from core.db import DBConnection
 
 router = Router(tags=["DQ Reports"])
 
-# Correct catalog
-CATALOG = "niwa_dev.gold"   # adjust via env if needed
+# Fully-qualified view names (niwa, not niew)
+VW_SUMMARY       = "niwa_dev.gold.vw_smbc_marx_validation_summary_report"
+VW_STALENESS     = "niwa_dev.gold.vw_smbc_marx_validation_staleness_report"
+VW_OUTLIERS      = "niwa_dev.gold.vw_smbc_marx_validation_outlier_report"
+VW_AVAILABILITY  = "niwa_dev.gold.vw_smbc_marx_validation_availability_report"
+VW_REASONABILITY = "niwa_dev.gold.vw_smbc_marx_validation_reasonability_report"
+VW_SCHEMA        = "niwa_dev.gold.vw_smbc_marx_validation_schema_report"
 
-def fqn(view_tail: str) -> str:
-    """Build fully-qualified view name once."""
-    return f"{CATALOG}.{view_tail}"
 
-def _latest(db: DBConnection, view_fqn: str) -> date:
-    """Return latest available report_date as a date."""
-    q = f"SELECT max(CAST(report_date AS date)) AS d FROM {view_fqn}"
-    d = db.execute(q, df=True).values[0][0]
-    if isinstance(d, datetime):
-        d = d.date()
-    return d
-
-def _fetch(view_tail: str,
-           rep_dt: Optional[date] = None,
-           cols: str = "*",
-           limit: Optional[int] = None):
-    """Common fetch for all DQ views."""
-    view = fqn(view_tail)
+@router.get("/dq/summary", response=List[Dict[str, Union[str, int, float]]])
+def dq_summary(request, report_date: Optional[date] = None, limit: int = 500):
     with DBConnection() as db:
-        day = rep_dt or _latest(db, view)
+        if report_date:
+            q = f"""
+                SELECT * FROM {VW_SUMMARY}
+                WHERE CAST(report_date AS date) = DATE '{report_date}'
+                LIMIT {int(limit)}
+            """
+        else:
+            q = f"""
+                SELECT * FROM {VW_SUMMARY}
+                ORDER BY report_date DESC
+                LIMIT {int(limit)}
+            """
+        df = db.execute(q, df=True)
+        return df.to_dict(orient="records")
 
-        lim = f" LIMIT {int(limit)}" if limit else ""
-        q = (
-            f"SELECT {cols} FROM {view} "
-            f"WHERE CAST(report_date AS date) = DATE '{day.isoformat()}'"
-            f"{lim}"
-        )
-        return db.execute(q, df=True)
 
-# ----------------- endpoints -----------------
+@router.get("/dq/staleness", response=List[Dict[str, Union[str, int, float]]])
+def dq_staleness(request, report_date: Optional[date] = None, limit: int = 500):
+    with DBConnection() as db:
+        if report_date:
+            q = f"""
+                SELECT * FROM {VW_STALENESS}
+                WHERE CAST(report_date AS date) = DATE '{report_date}'
+                LIMIT {int(limit)}
+            """
+        else:
+            q = f"""
+                SELECT * FROM {VW_STALENESS}
+                ORDER BY report_date DESC
+                LIMIT {int(limit)}
+            """
+        df = db.execute(q, df=True)
+        return df.to_dict(orient="records")
 
-@router.get("/summary", response=List[Dict[str, Union[str, int, float]]])
-def get_summary(report_date: Optional[date] = None, limit: int = 500):
-    df = _fetch("vw_smbc_marx_validation_summary_report",
-                rep_dt=report_date, limit=limit)
-    return df.to_dict(orient="records")
 
-@router.get("/staleness", response=List[Dict[str, Union[str, int, float]]])
-def get_staleness(report_date: Optional[date] = None, limit: int = 500):
-    df = _fetch("vw_smbc_marx_validation_staleness_report",
-                rep_dt=report_date, limit=limit)
-    return df.to_dict(orient="records")
+@router.get("/dq/outliers", response=List[Dict[str, Union[str, int, float]]])
+def dq_outliers(request, report_date: Optional[date] = None, limit: int = 500):
+    with DBConnection() as db:
+        if report_date:
+            q = f"""
+                SELECT * FROM {VW_OUTLIERS}
+                WHERE CAST(report_date AS date) = DATE '{report_date}'
+                LIMIT {int(limit)}
+            """
+        else:
+            q = f"""
+                SELECT * FROM {VW_OUTLIERS}
+                ORDER BY report_date DESC
+                LIMIT {int(limit)}
+            """
+        df = db.execute(q, df=True)
+        return df.to_dict(orient="records")
 
-@router.get("/outliers", response=List[Dict[str, Union[str, int, float]]])
-def get_outliers(report_date: Optional[date] = None, limit: int = 500):
-    df = _fetch("vw_smbc_marx_validation_outlier_report",
-                rep_dt=report_date, limit=limit)
-    return df.to_dict(orient="records")
+
+@router.get("/dq/availability", response=List[Dict[str, Union[str, int, float]]])
+def dq_availability(request, report_date: Optional[date] = None, limit: int = 500):
+    with DBConnection() as db:
+        if report_date:
+            q = f"""
+                SELECT * FROM {VW_AVAILABILITY}
+                WHERE CAST(report_date AS date) = DATE '{report_date}'
+                LIMIT {int(limit)}
+            """
+        else:
+            q = f"""
+                SELECT * FROM {VW_AVAILABILITY}
+                ORDER BY report_date DESC
+                LIMIT {int(limit)}
+            """
+        df = db.execute(q, df=True)
+        return df.to_dict(orient="records")
+
+
+@router.get("/dq/reasonability", response=List[Dict[str, Union[str, int, float]]])
+def dq_reasonability(request, report_date: Optional[date] = None, limit: int = 500):
+    with DBConnection() as db:
+        if report_date:
+            q = f"""
+                SELECT * FROM {VW_REASONABILITY}
+                WHERE CAST(report_date AS date) = DATE '{report_date}'
+                LIMIT {int(limit)}
+            """
+        else:
+            q = f"""
+                SELECT * FROM {VW_REASONABILITY}
+                ORDER BY report_date DESC
+                LIMIT {int(limit)}
+            """
+        df = db.execute(q, df=True)
+        return df.to_dict(orient="records")
+
+
+@router.get("/dq/schema", response=List[Dict[str, Union[str, int, float]]])
+def dq_schema(request, report_date: Optional[date] = None, limit: int = 500):
+    with DBConnection() as db:
+        if report_date:
+            q = f"""
+                SELECT * FROM {VW_SCHEMA}
+                WHERE CAST(report_date AS date) = DATE '{report_date}'
+                LIMIT {int(limit)}
+            """
+        else:
+            q = f"""
+                SELECT * FROM {VW_SCHEMA}
+                ORDER BY report_date DESC
+                LIMIT {int(limit)}
+            """
+        df = db.execute(q, df=True)
+        return df.to_dict(orient="records")
