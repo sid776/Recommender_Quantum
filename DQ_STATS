@@ -1,0 +1,81 @@
+# backend/services/api/dq_reports.py
+from typing import List, Dict, Union, Optional
+from ninja import Router
+from datetime import datetime
+from core.db import DBConnection
+
+router = Router(tags=["DQ Reports"])
+
+# --- config: adjust if your catalog / schema change ---
+CATALOG = "niwa_dev_gold"    # catalog
+SCHEMA  = "ww"                # schema prefix in the view names below
+
+# helper to pick latest date in a view (assumes a date/datetime column name)
+def _latest_date(db: DBConnection, fqv: str, date_col: str) -> str:
+    q = f"SELECT max({date_col}) AS d FROM {fqv}"
+    d = db.execute(q, df=True).values[0][0]
+    # return as yyyy-mm-dd string for consistent filtering
+    if isinstance(d, datetime):
+        return d.date().isoformat()
+    return str(d)
+
+# generic fetcher with optional date param and column selection
+def _fetch_view(fqv: str, date_col: str, date: Optional[str] = None,
+                cols: Optional[str] = "*", limit: Optional[int] = None):
+    with DBConnection() as db:
+        # resolve date
+        cob = date or _latest_date(db, fqv, date_col)
+        # build SQL
+        lim = f" LIMIT {int(limit)}" if limit else ""
+        q = f"""
+            SELECT {cols}
+            FROM {fqv}
+            WHERE CAST({date_col} AS date) = CAST('{cob}' AS date)
+            {lim}
+        """
+        return db.execute(q, df=True)
+
+# ---- Endpoints ----
+# View names you were given:
+# niwa_dev_gold.ww_smbc_marx_validation_summary_report
+# niwa_dev_gold.ww_smbc_marx_validation_staleness_report
+# niwa_dev_gold.ww_smbc_marx_validation_outlier_report
+# niwa_dev_gold.ww_smbc_marx_validation_availability_report
+# niwa_dev_gold.ww_smbc_marx_validation_reasonability_report
+# niwa_dev_gold.ww_smbc_marx_validation_schema_report
+
+@router.get("/summary", response=List[Dict[str, Union[str, int, float]]])
+def get_validation_summary(request, date: Optional[str] = None, limit: int = 500):
+    fqv = f"{CATALOG}.{SCHEMA}_smbc_marx_validation_summary_report"
+    df = _fetch_view(fqv, "RUN_DATE", date, cols="*", limit=limit)
+    return df.to_dict(orient="records")
+
+@router.get("/staleness", response=List[Dict[str, Union[str, int, float]]])
+def get_staleness_report(request, date: Optional[str] = None, limit: int = 500):
+    fqv = f"{CATALOG}.{SCHEMA}_smbc_marx_validation_staleness_report"
+    df = _fetch_view(fqv, "RUN_DATE", date, cols="*", limit=limit)
+    return df.to_dict(orient="records")
+
+@router.get("/outliers", response=List[Dict[str, Union[str, int, float]]])
+def get_outlier_report(request, date: Optional[str] = None, limit: int = 500):
+    fqv = f"{CATALOG}.{SCHEMA}_smbc_marx_validation_outlier_report"
+    df = _fetch_view(fqv, "RUN_DATE", date, cols="*", limit=limit)
+    return df.to_dict(orient="records")
+
+@router.get("/availability", response=List[Dict[str, Union[str, int, float]]])
+def get_availability_report(request, date: Optional[str] = None, limit: int = 500):
+    fqv = f"{CATALOG}.{SCHEMA}_smbc_marx_validation_availability_report"
+    df = _fetch_view(fqv, "RUN_DATE", date, cols="*", limit=limit)
+    return df.to_dict(orient="records")
+
+@router.get("/reasonability", response=List[Dict[str, Union[str, int, float]]])
+def get_reasonability_report(request, date: Optional[str] = None, limit: int = 500):
+    fqv = f"{CATALOG}.{SCHEMA}_smbc_marx_validation_reasonability_report"
+    df = _fetch_view(fqv, "RUN_DATE", date, cols="*", limit=limit)
+    return df.to_dict(orient="records")
+
+@router.get("/schema", response=List[Dict[str, Union[str, int, float]]])
+def get_schema_report(request, date: Optional[str] = None, limit: int = 500):
+    fqv = f"{CATALOG}.{SCHEMA}_smbc_marx_validation_schema_report"
+    df = _fetch_view(fqv, "RUN_DATE", date, cols="*", limit=limit)
+    return df.to_dict(orient="records")
