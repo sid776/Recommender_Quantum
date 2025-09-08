@@ -1,52 +1,27 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Box, Button, Flex, Select, Input } from "@chakra-ui/react";
-import ApplicableAgGrid from "../ModelConfiguration/ApplicableAgGrid"; // ✅ keep this import
+import ApplicableAgGrid from "../ModelConfiguration/ApplicableAgGrid";
 
-const REPORT_ENDPOINT = "/api/cosmos";
+const REPORTS = [
+  { label: "DQ Summary", value: "summary" },
+  { label: "DQ Staleness", value: "staleness" },
+  { label: "DQ Outliers", value: "outliers" },
+  { label: "DQ Availability", value: "availability" },
+  { label: "DQ Reasonability", value: "reasonability" },
+  { label: "DQ Schema", value: "schema" },
+];
 
-
-const WrappedApplicableAgGrid = (options) => {
-  return <ApplicableAgGrid {...options} />;
-};
+const REPORT_ENDPOINT = "/api/dq";
 
 export default function CosmosReports() {
-  const [reportList, setReportList] = useState([]);
-  const [reportName, setReportName] = useState("");
+  const [reportName, setReportName] = useState(REPORTS[0].value);
   const [reportDate, setReportDate] = useState(
-    () => new Date().toISOString().slice(0, 10)
+    new Date().toISOString().slice(0, 10)
   );
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Load available reports for dropdown
-  useEffect(() => {
-    fetch(`${REPORT_ENDPOINT}/reports`)
-      .then((r) => r.json())
-      .then((data) => {
-        setReportList(data || []);
-        if (data?.length) setReportName(data[0]);
-      })
-      .catch(() => setReportList([]));
-  }, []);
-
-  const loadData = async () => {
-    if (!reportName || !reportDate) return;
-    setLoading(true);
-    try {
-      const url = `${REPORT_ENDPOINT}/report/${encodeURIComponent(
-        reportName
-      )}?report_date=${reportDate}`;
-      const res = await fetch(url);
-      const json = await res.json();
-      setRows(Array.isArray(json) ? json : []);
-    } catch (e) {
-      setRows([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // quick dynamic columns from first row
+  // build columns dynamically from data
   const columnDefs = useMemo(() => {
     if (!rows?.length) return [];
     return Object.keys(rows[0]).map((k) => ({
@@ -58,6 +33,22 @@ export default function CosmosReports() {
     }));
   }, [rows]);
 
+  const loadData = async () => {
+    if (!reportName) return;
+    setLoading(true);
+    try {
+      const url = `${REPORT_ENDPOINT}/${reportName}?report_date=${reportDate}&limit=100`;
+      const res = await fetch(url);
+      const json = await res.json();
+      setRows(Array.isArray(json) ? json : []);
+    } catch (err) {
+      console.error("Error loading data:", err);
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Box p={4}>
       <Flex gap={3} align="center" mb={4} wrap="wrap">
@@ -66,9 +57,9 @@ export default function CosmosReports() {
           onChange={(e) => setReportName(e.target.value)}
           width="280px"
         >
-          {reportList.map((r) => (
-            <option key={r} value={r}>
-              {r}
+          {REPORTS.map((r) => (
+            <option key={r.value} value={r.value}>
+              {r.label}
             </option>
           ))}
         </Select>
@@ -85,18 +76,19 @@ export default function CosmosReports() {
         </Button>
       </Flex>
 
-     
-      <WrappedApplicableAgGrid
-        title={reportName || "Cosmos Report"}
-        rowData={Array.isArray(rows) ? rows : []}
-        COLUMN_DEFINITIONS={Array.isArray(columnDefs) ? columnDefs : []}
-        setSelectedRows={() => {}}
-        gridRef={null}
-        autoGroupColumnDef={undefined}
-        animateRows={false}
-        supressRowClickSelection={false}
-        groupSelectsChildren={false}
-        paginationPageSize={50}
+      <ApplicableAgGrid
+        options={{
+          title: reportName.toUpperCase(),
+          rowData: Array.isArray(rows) ? rows : [],
+          COLUMN_DEFINITIONS: Array.isArray(columnDefs) ? columnDefs : [],
+          setSelectedRows: () => {},
+          gridRef: null,
+          autoGroupColumnDef: undefined,
+          animateRows: false,
+          suppressRowClickSelection: false,
+          groupSelectsChildren: false,
+          paginationPageSize: 50,
+        }}
       />
     </Box>
   );
