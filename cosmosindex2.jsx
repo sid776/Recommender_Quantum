@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from "react";
 import { Box, Button, Flex, Select, Input } from "@chakra-ui/react";
-import { AgGridTable } from "../../elements"; // <- same style/path as Calculator
+import { AgGridReact } from "ag-grid-react";
+import "ag-grid-enterprise";
 
-// The six DQ endpoints you showed in /api/docs
+// DQ endpoints visible in /api/docs
 const REPORTS = [
   { label: "DQ Summary",       value: "summary" },
   { label: "DQ Staleness",     value: "staleness" },
@@ -38,7 +39,6 @@ export default function CosmosReports() {
     }
   };
 
-  // build columns from first row
   const columnDefs = useMemo(() => {
     if (!rows?.length) return [];
     return Object.keys(rows[0]).map((k) => ({
@@ -49,6 +49,11 @@ export default function CosmosReports() {
       resizable: true,
     }));
   }, [rows]);
+
+  const defaultColDef = useMemo(
+    () => ({ floatingFilter: isFilterVisible }),
+    [isFilterVisible]
+  );
 
   return (
     <Box p={4}>
@@ -85,10 +90,10 @@ export default function CosmosReports() {
         className="ag-theme-alpine"
         style={{ height: "600px", width: "100%", backgroundColor: "white" }}
       >
-        <AgGridTable
+        <AgGridReact
           rowData={rows}
           columnDefs={columnDefs}
-          defaultColDef={{ floatingFilter: isFilterVisible }}
+          defaultColDef={defaultColDef}
           sideBar={{}}
           rowSelection="multiple"
           pagination={rows?.length > 5}
