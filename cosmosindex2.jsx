@@ -1,27 +1,46 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Box, Button, Flex, Select, Input } from "@chakra-ui/react";
-import ApplicableAgGrid from "../ModelConfiguration/ApplicableAgGrid";
+import { AgGridTable } from "../../elements"; // <- same import used inside ApplicableAgGrid
 
+// DQ endpoints you showed in /api/docs
 const REPORTS = [
-  { label: "DQ Summary", value: "summary" },
-  { label: "DQ Staleness", value: "staleness" },
-  { label: "DQ Outliers", value: "outliers" },
-  { label: "DQ Availability", value: "availability" },
-  { label: "DQ Reasonability", value: "reasonability" },
-  { label: "DQ Schema", value: "schema" },
+  { label: "DQ Summary",        value: "summary" },
+  { label: "DQ Staleness",      value: "staleness" },
+  { label: "DQ Outliers",       value: "outliers" },
+  { label: "DQ Availability",   value: "availability" },
+  { label: "DQ Reasonability",  value: "reasonability" },
+  { label: "DQ Schema",         value: "schema" },
 ];
 
 const REPORT_ENDPOINT = "/api/dq";
 
 export default function CosmosReports() {
   const [reportName, setReportName] = useState(REPORTS[0].value);
-  const [reportDate, setReportDate] = useState(
+  const [reportDate, setReportDate] = useState(() =>
     new Date().toISOString().slice(0, 10)
   );
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [isFilterVisible, setIsFilterVisible] = useState(false);
 
-  // build columns dynamically from data
+  // load data from your DQ endpoints
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      // some endpoints may ignore report_date; it’s fine to pass it
+      const url = `${REPORT_ENDPOINT}/${reportName}?report_date=${reportDate}&limit=100`;
+      const res = await fetch(url);
+      const json = await res.json();
+      setRows(Array.isArray(json) ? json : []);
+    } catch (e) {
+      console.error(e);
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // dynamic columns from first row
   const columnDefs = useMemo(() => {
     if (!rows?.length) return [];
     return Object.keys(rows[0]).map((k) => ({
@@ -32,22 +51,6 @@ export default function CosmosReports() {
       resizable: true,
     }));
   }, [rows]);
-
-  const loadData = async () => {
-    if (!reportName) return;
-    setLoading(true);
-    try {
-      const url = `${REPORT_ENDPOINT}/${reportName}?report_date=${reportDate}&limit=100`;
-      const res = await fetch(url);
-      const json = await res.json();
-      setRows(Array.isArray(json) ? json : []);
-    } catch (err) {
-      console.error("Error loading data:", err);
-      setRows([]);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <Box p={4}>
@@ -74,22 +77,24 @@ export default function CosmosReports() {
         <Button onClick={loadData} isLoading={loading}>
           Load
         </Button>
+
+        <Button variant="outline" onClick={() => setIsFilterVisible((v) => !v)}>
+          {isFilterVisible ? "Hide Filters" : "Show Filters"}
+        </Button>
       </Flex>
 
-      <ApplicableAgGrid
-        options={{
-          title: reportName.toUpperCase(),
-          rowData: Array.isArray(rows) ? rows : [],
-          COLUMN_DEFINITIONS: Array.isArray(columnDefs) ? columnDefs : [],
-          setSelectedRows: () => {},
-          gridRef: null,
-          autoGroupColumnDef: undefined,
-          animateRows: false,
-          suppressRowClickSelection: false,
-          groupSelectsChildren: false,
-          paginationPageSize: 50,
-        }}
-      />
+      <Box className="ag-theme-alpine" style={{ height: "600px", width: "100%", backgroundColor: "white" }}>
+        <AgGridTable
+          rowData={rows}
+          columnDefs={columnDefs}
+          defaultColDef={{ floatingFilter: isFilterVisible }}
+          sideBar={{}}
+          rowSelection="multiple"
+          pagination={rows?.length > 5}
+          paginationPageSize={50}
+          paginationPageSizeSelector={[10, 20, 50, 100]}
+        />
+      </Box>
     </Box>
   );
 }
