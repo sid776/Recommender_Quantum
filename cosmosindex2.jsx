@@ -1,9 +1,13 @@
+// frontend/src/components/pages/CosmosReports/index.jsx
 import React, { useMemo, useState } from "react";
 import { Box, Button, Flex, Select, Input } from "@chakra-ui/react";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-enterprise";
+// If your project doesn't already include AG Grid styles globally, keep these two:
+import "ag-grid-community/styles/ag-grid.css";
+import "ag-grid-community/styles/ag-theme-alpine.css";
 
-// DQ endpoints visible in /api/docs
+// DQ endpoints (from /api/docs)
 const REPORTS = [
   { label: "DQ Summary",       value: "summary" },
   { label: "DQ Staleness",     value: "staleness" },
