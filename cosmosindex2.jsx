@@ -1,19 +1,24 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Box, Button, Flex, Select, Input } from "@chakra-ui/react";
-import ApplicableAgGrid from "../ModelConfiguration/ApplicableAgGrid"; // adjust if path differs
+import ApplicableAgGrid from "../ModelConfiguration/ApplicableAgGrid"; // ✅ keep this import
 
-const REPORT_ENDPOINT = "/api/cosmos"; // adjust to your API base path
+const REPORT_ENDPOINT = "/api/cosmos";
+
+
+const WrappedApplicableAgGrid = (options) => {
+  return <ApplicableAgGrid {...options} />;
+};
 
 export default function CosmosReports() {
   const [reportList, setReportList] = useState([]);
   const [reportName, setReportName] = useState("");
-  const [reportDate, setReportDate] = useState(() =>
-    new Date().toISOString().slice(0, 10)
+  const [reportDate, setReportDate] = useState(
+    () => new Date().toISOString().slice(0, 10)
   );
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // load available reports for the dropdown
+  // Load available reports for dropdown
   useEffect(() => {
     fetch(`${REPORT_ENDPOINT}/reports`)
       .then((r) => r.json())
@@ -53,20 +58,6 @@ export default function CosmosReports() {
     }));
   }, [rows]);
 
-  // ✅ build gridOptions here
-  const gridOptions = {
-    title: reportName || "Cosmos Report",
-    RowData: Array.isArray(rows) ? rows : [],
-    COLUMN_DEFINITIONS: Array.isArray(columnDefs) ? columnDefs : [],
-    setSelectedRows: () => {},
-    gridRef: null,
-    autoGroupColumnDef: undefined,
-    animateRows: false,
-    supressRowClickSelection: false,
-    groupSelectsChildren: false,
-    paginationPageSize: 50,
-  };
-
   return (
     <Box p={4}>
       <Flex gap={3} align="center" mb={4} wrap="wrap">
@@ -94,8 +85,19 @@ export default function CosmosReports() {
         </Button>
       </Flex>
 
-      {/* ✅ pass as one prop like other pages */}
-      <ApplicableAgGrid options={gridOptions} />
+     
+      <WrappedApplicableAgGrid
+        title={reportName || "Cosmos Report"}
+        rowData={Array.isArray(rows) ? rows : []}
+        COLUMN_DEFINITIONS={Array.isArray(columnDefs) ? columnDefs : []}
+        setSelectedRows={() => {}}
+        gridRef={null}
+        autoGroupColumnDef={undefined}
+        animateRows={false}
+        supressRowClickSelection={false}
+        groupSelectsChildren={false}
+        paginationPageSize={50}
+      />
     </Box>
   );
 }
