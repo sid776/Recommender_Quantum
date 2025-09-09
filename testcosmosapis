@@ -1,0 +1,6 @@
+# replace the WHERE line with this:
+WHERE (
+    to_date(CAST(report_date AS STRING), 'MMddyyyy') = to_date('{report_date}')
+    OR to_date(CAST(report_date AS STRING), 'yyyyMMdd') = to_date('{report_date}')
+    OR to_date(CAST(report_date AS STRING))            = to_date('{report_date}')
+)
