@@ -336,7 +336,7 @@ export default function CosmosReports() {
       const res = await fetch(url);
       const json = await res.json();
       setRows(Array.isArray(json) ? json : []);
-    } catch (e) {
+    } catch {
       setRows([]);
     } finally {
       setLoading(false);
@@ -360,31 +360,31 @@ export default function CosmosReports() {
         <Wrap align="center" mb={4} spacing="16px">
           <WrapItem>
             <DropdownFieldSet
-              name="reportName"
+              id="reportName"
+              fieldName="reportName"
               label="Report"
-              options={REPORTS}
+              optionData={REPORTS}
+              isSimpleSelect={true}
               isSearchable={false}
-              onSelectionChange={(opt) => setValue("reportName", opt?.value)}
               getOptionLabel={(o) => o.label}
+              getOptionValue={(o) => o.value}
+              onSelectionChange={(opt) => setValue("reportName", opt?.value)}
               defaultValue={REPORTS[0]}
             />
           </WrapItem>
 
           <WrapItem>
             <InputFieldSet
-              name="reportDate"
+              id="reportDate"
+              fieldName="reportDate"
               label="Report Date"
               type="date"
-              registerOptions={{ required: "Required" }}
+              registerOptions={{ required: "required" }}
             />
           </WrapItem>
 
           <WrapItem>
-            <AppButton
-              onClick={loadData}
-              isLoading={loading}
-              label="Load"
-            />
+            <AppButton onClick={loadData} isLoading={loading} label="Load" />
           </WrapItem>
         </Wrap>
 
@@ -398,6 +398,5 @@ export default function CosmosReports() {
     </FormProvider>
   );
 }
-
 
 
