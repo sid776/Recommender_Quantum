@@ -1,10 +1,9 @@
 // frontend/src/components/pages/CosmosReports/index.jsx
-import React, { useMemo, useState } from "react";
-import { Box, Wrap, WrapItem } from "@chakra-ui/react";
+import React, { useEffect, useMemo, useState } from "react";
+import { Box, Wrap, WrapItem, Button } from "@chakra-ui/react";
 import { useForm, FormProvider } from "react-hook-form";
 import DynamicSelect from "../../elements/DynamicSelect.jsx";
 import InputFieldSet from "../../elements/InputFieldSet.jsx";
-import AppButton from "../../elements/AppButton";
 import AgGridTable from "../../elements/AgGridTable.jsx";
 
 const prettify = (k) => k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -101,13 +100,17 @@ export default function CosmosReports() {
         ? json.rows
         : [];
       setRows(data);
-    } catch (e) {
-      console.error("Failed to load report", e);
+    } catch {
       setRows([]);
     } finally {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    if (reportName && reportDate) loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reportName, reportDate]);
 
   const reportLabel = REPORTS.find((r) => r.value === reportName)?.label || reportName;
   const columnDefs = useMemo(() => buildColumnDefs(rows, reportLabel), [rows, reportLabel]);
@@ -139,7 +142,9 @@ export default function CosmosReports() {
           </WrapItem>
 
           <WrapItem>
-            <AppButton onClick={loadData} isLoading={loading} label="Load" />
+            <Button onClick={loadData} isLoading={loading} colorScheme="green">
+              Load
+            </Button>
           </WrapItem>
         </Wrap>
 
