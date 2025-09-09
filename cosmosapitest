@@ -27,3 +27,51 @@ def dq_outliers(request, report_date: Optional[date] = None, limit: int = 500):
             """
         df = db.execute(q, df=True)
         return df.to_dict(orient="records")
+#######################################################################
+import json, ast
+import numpy as np
+import pandas as pd
+from typing import Any, Dict, List, Optional
+from datetime import date
+
+@router.get("/dq/schema", response=List[Dict[str, Any]])
+def dq_schema(request, report_date: Optional[date] = None, limit: int = 500):
+    def parse_maybe_json(v: Any) -> Any:
+        if not isinstance(v, str):
+            return v
+        s = v.strip()
+        if not s or s[0] not in "{[" or s[-1] not in "}]":
+            return v
+        try:
+            return json.loads(s)              # strict JSON
+        except json.JSONDecodeError:
+            try:
+                return ast.literal_eval(s)    # fallback for single quotes
+            except Exception:
+                return v
+
+    with DBConnection() as db:
+        if report_date:
+            q = f"""
+                SELECT * FROM {VW_SCHEMA}
+                WHERE  to_date(CAST(as_of_date AS STRING)) = to_date('{report_date}')
+                   OR  to_date(CAST(as_of_date AS STRING), 'yyyyMMdd') = to_date('{report_date}')
+                LIMIT {int(limit)}
+            """
+        else:
+            q = f"""
+                SELECT * FROM {VW_SCHEMA}
+                ORDER BY coalesce(
+                    to_date(CAST(as_of_date AS STRING)),
+                    to_date(CAST(as_of_date AS STRING), 'yyyyMMdd')
+                ) DESC
+                LIMIT {int(limit)}
+            """
+        df = db.execute(q, df=True)
+
+        # --- clean for JSON ---
+        df = df.replace([np.inf, -np.inf], np.nan).where(pd.notnull(df), None)
+        if 'rule_logic' in df.columns:   # parse only rule_logic if it exists
+            df['rule_logic'] = df['rule_logic'].apply(parse_maybe_json)
+
+        return df.to_dict(orient="records")
