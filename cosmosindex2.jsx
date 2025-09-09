@@ -93,7 +93,10 @@ export default function CosmosReports() {
 ##################################
 import React, { useMemo, useState } from "react";
 import { Box, Wrap, WrapItem } from "@chakra-ui/react";
-import { DropdownFieldSet, InputFieldSet, AppButton, AgGridTable } from "../../elements";
+import DropdownFieldSet from "../../elements/DropdownFieldSet";
+import InputFieldSet from "../../elements/InputFieldSet";
+import AppButton from "../../elements/AppButton";
+import AgGridTable from "../../elements/AgGridTable";
 
 const REPORTS = [
   { label: "DQ Summary", value: "summary" },
@@ -146,7 +149,7 @@ export default function CosmosReports() {
             label="Report"
             options={REPORTS}
             value={reportName}
-            onSelectionChange={(v) => setReportName(v)}
+            onSelectionChange={(v) => setReportName(v?.value ?? v)}
             isMultiSelect={false}
             isSearchable={false}
             style={{ width: "260px" }}
@@ -183,4 +186,5 @@ export default function CosmosReports() {
     </Box>
   );
 }
+
 
