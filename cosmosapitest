@@ -1,22 +1,29 @@
-@router.get("/dq/summary", response=List[Dict[str, Union[str, int, float]]])
-def dq_summary(request, report_date: Optional[date] = None, limit: int = 500):
+from typing import Any, Dict, List, Optional
+from datetime import date
+
+@router.get("/dq/outliers", response=List[Dict[str, Any]])
+def dq_outliers(request, report_date: Optional[date] = None, limit: int = 500):
     with DBConnection() as db:
         if report_date:
-            query = f"""
-                SELECT * FROM {VW_SUMMARY}
-                WHERE coalesce(
-                        to_date(CAST(report_date AS STRING)),
-                        to_date(CAST(report_date AS STRING), 'yyyyMMdd'),
-                        to_date(CAST(report_date AS STRING), 'MMddyyyy'),
-                        to_date(CAST(report_date AS STRING), 'ddMMyyyy')
-                      ) = to_date('{report_date}')
+            q = f"""
+                SELECT *
+                FROM {VW_OUTLIERS}
+                WHERE
+                  -- handle either ISO or yyyyMMdd stored strings
+                  to_date(CAST(as_of_date AS STRING)) = to_date('{report_date}')
+                  OR to_date(CAST(as_of_date AS STRING), 'yyyyMMdd') = to_date('{report_date}')
                 LIMIT {int(limit)}
             """
         else:
-            query = f"""
-                SELECT * FROM {VW_SUMMARY}
-                ORDER BY report_date DESC
+            q = f"""
+                SELECT *
+                FROM {VW_OUTLIERS}
+                ORDER BY
+                  coalesce(
+                    to_date(CAST(as_of_date AS STRING)),
+                    to_date(CAST(as_of_date AS STRING), 'yyyyMMdd')
+                  ) DESC
                 LIMIT {int(limit)}
             """
-        df = db.execute(query, df=True)
+        df = db.execute(q, df=True)
         return df.to_dict(orient="records")
