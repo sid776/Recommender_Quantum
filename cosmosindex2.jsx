@@ -186,5 +186,111 @@ export default function CosmosReports() {
     </Box>
   );
 }
+##################################################################################################
+import React, { useMemo, useState } from "react";
+import { Box, Wrap, WrapItem } from "@chakra-ui/react";
+import { useForm, FormProvider } from "react-hook-form";
+import DropdownFieldSet from "../../elements/DropdownFieldSet.jsx";
+import InputFieldSet from "../../elements/InputFieldSet.jsx";
+import AppButton from "../../elements/AppButton.jsx";
+import AgGridTable from "../../elements/AgGridTable.jsx";
+
+const REPORTS = [
+  { label: "DQ Summary", value: "summary" },
+  { label: "DQ Staleness", value: "staleness" },
+  { label: "DQ Outliers", value: "outliers" },
+  { label: "DQ Availability", value: "availability" },
+  { label: "DQ Reasonability", value: "reasonability" },
+  { label: "DQ Schema", value: "schema" },
+];
+
+const REPORT_ENDPOINT = "/api/dq";
+
+export default function CosmosReports() {
+  const methods = useForm({
+    defaultValues: {
+      reportName: REPORTS[0].value,
+      reportDate: new Date().toISOString().slice(0, 10),
+    },
+  });
+
+  const { watch, setValue } = methods;
+  const reportName = watch("reportName");
+  const reportDate = watch("reportDate");
+
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  async function loadData() {
+    setLoading(true);
+    try {
+      const url = `${REPORT_ENDPOINT}/${encodeURIComponent(
+        reportName
+      )}?report_date=${reportDate}&limit=100`;
+      const res = await fetch(url);
+      const json = await res.json();
+      setRows(Array.isArray(json) ? json : []);
+    } catch {
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const columnDefs = useMemo(() => {
+    if (!rows || rows.length === 0) return [];
+    return Object.keys(rows[0]).map((k) => ({
+      headerName: k.replace(/_/g, " ").toUpperCase(),
+      field: k,
+      sortable: true,
+      filter: true,
+      resizable: true,
+    }));
+  }, [rows]);
+
+  return (
+    <FormProvider {...methods}>
+      <Box p={4}>
+        <Wrap align="center" mb={4} spacing="16px">
+          <WrapItem>
+            <DropdownFieldSet
+              id="reportName"
+              label="Report"
+              options={REPORTS}
+              isSearchable={false}
+              isMultiSelect={false}
+              onSelectionChange={(opt) => setValue("reportName", opt?.value)}
+              getOptionLabel={(o) => o.label}
+              getOptionValue={(o) => o.value}
+              defaultValue={REPORTS[0]}
+            />
+          </WrapItem>
+
+          <WrapItem>
+            <InputFieldSet
+              id="reportDate"
+              label="Report Date"
+              fieldName="reportDate"
+              type="date"
+              registerOptions={{ required: "required" }}
+            />
+          </WrapItem>
+
+          <WrapItem>
+            <AppButton onClick={loadData} isLoading={loading} label="Load" />
+          </WrapItem>
+        </Wrap>
+
+        <AgGridTable
+          rowData={rows}
+          columnDefs={columnDefs}
+          pagination={true}
+          paginationPageSize={50}
+          defaultColDef={{ sortable: true, filter: true, resizable: true }}
+        />
+      </Box>
+    </FormProvider>
+  );
+}
 
 
