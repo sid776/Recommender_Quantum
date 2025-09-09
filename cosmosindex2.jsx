@@ -1,13 +1,10 @@
-// frontend/src/components/pages/CosmosReports/index.jsx
 import React, { useMemo, useState } from "react";
 import { Box, Button, Flex, Select, Input } from "@chakra-ui/react";
-import { AgGridReact } from "ag-grid-react";   // ✅ same as Calculator
+import { AgGridReact } from "ag-grid-react";
 import "ag-grid-enterprise";
-
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
 
-// DQ endpoints visible in /api/docs
 const REPORTS = [
   { label: "DQ Summary", value: "summary" },
   { label: "DQ Staleness", value: "staleness" },
@@ -26,7 +23,7 @@ export default function CosmosReports() {
   );
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [isFilterVisible, setIsFilterVisible] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -36,7 +33,6 @@ export default function CosmosReports() {
       const json = await res.json();
       setRows(Array.isArray(json) ? json : []);
     } catch (e) {
-      console.error("CosmosReports load error:", e);
       setRows([]);
     } finally {
       setLoading(false);
@@ -55,8 +51,8 @@ export default function CosmosReports() {
   }, [rows]);
 
   const defaultColDef = useMemo(
-    () => ({ floatingFilter: isFilterVisible }),
-    [isFilterVisible]
+    () => ({ floatingFilter: showFilters }),
+    [showFilters]
   );
 
   return (
@@ -85,8 +81,8 @@ export default function CosmosReports() {
           Load
         </Button>
 
-        <Button variant="outline" onClick={() => setIsFilterVisible((v) => !v)}>
-          {isFilterVisible ? "Hide Filters" : "Show Filters"}
+        <Button variant="outline" onClick={() => setShowFilters((v) => !v)}>
+          {showFilters ? "Hide Filters" : "Show Filters"}
         </Button>
       </Flex>
 
