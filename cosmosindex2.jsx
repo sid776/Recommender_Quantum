@@ -1,9 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { Box, Button, Flex, Select, Input } from "@chakra-ui/react";
-import { AgGridReact } from "ag-grid-react";
-import "ag-grid-enterprise";
-import "ag-grid-community/styles/ag-grid.css";
-import "ag-grid-community/styles/ag-theme-alpine.css";
+import ApplicableAgGrid from "../ModelConfiguration/ApplicableAgGrid";
 
 const REPORTS = [
   { label: "DQ Summary", value: "summary" },
@@ -18,12 +15,9 @@ const REPORT_ENDPOINT = "/api/dq";
 
 export default function CosmosReports() {
   const [reportName, setReportName] = useState(REPORTS[0].value);
-  const [reportDate, setReportDate] = useState(
-    () => new Date().toISOString().slice(0, 10)
-  );
+  const [reportDate, setReportDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -32,7 +26,7 @@ export default function CosmosReports() {
       const res = await fetch(url);
       const json = await res.json();
       setRows(Array.isArray(json) ? json : []);
-    } catch (e) {
+    } catch {
       setRows([]);
     } finally {
       setLoading(false);
@@ -50,19 +44,25 @@ export default function CosmosReports() {
     }));
   }, [rows]);
 
-  const defaultColDef = useMemo(
-    () => ({ floatingFilter: showFilters }),
-    [showFilters]
+  const gridOptions = useMemo(
+    () => ({
+      title: REPORTS.find((r) => r.value === reportName)?.label || "Cosmos Report",
+      RowData: Array.isArray(rows) ? rows : [],
+      COLUMN_DEFINITIONS: Array.isArray(columnDefs) ? columnDefs : [],
+      setSelectedRows: () => {},
+      autoGroupColumnDef: undefined,
+      animateRows: false,
+      supressRowClickSelection: false,
+      groupSelectsChildren: false,
+      paginationPageSize: 50,
+    }),
+    [reportName, rows, columnDefs]
   );
 
   return (
     <Box p={4}>
       <Flex gap={3} align="center" mb={4} wrap="wrap">
-        <Select
-          value={reportName}
-          onChange={(e) => setReportName(e.target.value)}
-          width="280px"
-        >
+        <Select value={reportName} onChange={(e) => setReportName(e.target.value)} width="280px">
           {REPORTS.map((r) => (
             <option key={r.value} value={r.value}>
               {r.label}
@@ -70,37 +70,14 @@ export default function CosmosReports() {
           ))}
         </Select>
 
-        <Input
-          type="date"
-          value={reportDate}
-          onChange={(e) => setReportDate(e.target.value)}
-          width="180px"
-        />
+        <Input type="date" value={reportDate} onChange={(e) => setReportDate(e.target.value)} width="180px" />
 
         <Button onClick={loadData} isLoading={loading}>
           Load
         </Button>
-
-        <Button variant="outline" onClick={() => setShowFilters((v) => !v)}>
-          {showFilters ? "Hide Filters" : "Show Filters"}
-        </Button>
       </Flex>
 
-      <Box
-        className="ag-theme-alpine"
-        style={{ height: "600px", width: "100%", backgroundColor: "white" }}
-      >
-        <AgGridReact
-          rowData={rows}
-          columnDefs={columnDefs}
-          defaultColDef={defaultColDef}
-          sideBar={{}}
-          rowSelection="multiple"
-          pagination={rows?.length > 5}
-          paginationPageSize={50}
-          paginationPageSizeSelector={[10, 20, 50, 100]}
-        />
-      </Box>
+      <ApplicableAgGrid {...gridOptions} />
     </Box>
   );
 }
