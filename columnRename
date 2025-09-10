@@ -1,0 +1,97 @@
+-- ==========================================
+-- Column renames extracted from YAML
+-- Using sandbox schema: rmdad_grc_dev_sjena
+-- ==========================================
+
+-- ===== riskfactor =====
+alter table rmdad_grc_dev_sjena.riskfactor rename column AL1_NAME          to ALT_MF_NM;
+alter table rmdad_grc_dev_sjena.riskfactor rename column RF_CLASS          to RF_CLASS_CD;
+alter table rmdad_grc_dev_sjena.riskfactor rename column CURRENCY          to CURRENCY_CD;
+alter table rmdad_grc_dev_sjena.riskfactor rename column CURVE_TYPE        to CURVE_INSTRUMENT_TYPE_CD;
+alter table rmdad_grc_dev_sjena.riskfactor rename column EFFECTIVE_CURRENCY to EFFECTIVE_CURRENCY_CD;
+alter table rmdad_grc_dev_sjena.riskfactor rename column FUTURE_TENOR      to FUTURE_TENOR_CD;
+alter table rmdad_grc_dev_sjena.riskfactor rename column INDEX_TENOR       to INDEX_TENOR_CD;
+alter table rmdad_grc_dev_sjena.riskfactor rename column INST_TYPE         to INST_TYPE_CD;
+alter table rmdad_grc_dev_sjena.riskfactor rename column CLEARING_HOUSE    to CLEARING_HOUSE_CD;
+alter table rmdad_grc_dev_sjena.riskfactor rename column MARGIN_TYPE       to MARGIN_TYPE_CD;
+alter table rmdad_grc_dev_sjena.riskfactor rename column SHOCK_TYPE        to SHOCK_TYPE_CD;
+alter table rmdad_grc_dev_sjena.riskfactor rename column VALID_FROM        to VALID_FROM_TS;
+alter table rmdad_grc_dev_sjena.riskfactor rename column VALID_TO          to VALID_TO_TS;
+
+-- ===== futuresexpirymapping =====
+alter table rmdad_grc_dev_sjena.futuresexpirymapping rename column EXPIRY_MONTH to EXPIRY_MONTH_CD;
+alter table rmdad_grc_dev_sjena.futuresexpirymapping rename column VALID_FROM   to VALID_FROM_TS;
+alter table rmdad_grc_dev_sjena.futuresexpirymapping rename column VALID_TO     to VALID_TO_TS;
+
+-- ===== varmodel =====
+alter table rmdad_grc_dev_sjena.varmodel rename column MODEL_ID        to ID;
+alter table rmdad_grc_dev_sjena.varmodel rename column CONFIDENCE_LVL  to CONFIDENCE_LEVEL_QT;
+alter table rmdad_grc_dev_sjena.varmodel rename column VAR_TYPE        to VAR_TYPE_CD;
+alter table rmdad_grc_dev_sjena.varmodel rename column HOLDING_PERIOD  to HOLDING_PERIOD_CD;
+alter table rmdad_grc_dev_sjena.varmodel rename column TIME_HORIZON    to TIME_HORIZON_CD;
+alter table rmdad_grc_dev_sjena.varmodel rename column IS_OFFICIAL     to IS_OFFICIAL_CD;
+alter table rmdad_grc_dev_sjena.varmodel rename column PNL_IDENTIFIER  to PNL_ID;
+alter table rmdad_grc_dev_sjena.varmodel rename column CREATED_BY      to CREATED_BY_NM;
+alter table rmdad_grc_dev_sjena.varmodel rename column VALID_FROM      to VALID_FROM_TS;
+alter table rmdad_grc_dev_sjena.varmodel rename column VALID_TO        to VALID_TO_TS;
+
+-- ===== varmodel_riskfactor =====
+alter table rmdad_grc_dev_sjena.varmodel_riskfactor rename column CREATED_BY to CREATED_BY_NM;
+alter table rmdad_grc_dev_sjena.varmodel_riskfactor rename column VALID_FROM to VALID_FROM_TS;
+alter table rmdad_grc_dev_sjena.varmodel_riskfactor rename column VALID_TO   to VALID_TO_TS;
+
+-- ===== varmodel_product =====
+alter table rmdad_grc_dev_sjena.varmodel_product rename column CREATED_BY to CREATED_BY_NM;
+alter table rmdad_grc_dev_sjena.varmodel_product rename column VALID_FROM to VALID_FROM_TS;
+alter table rmdad_grc_dev_sjena.varmodel_product rename column VALID_TO   to VALID_TO_TS;
+
+-- ===== request =====
+alter table rmdad_grc_dev_sjena.request rename column REQUEST_TYPE to REQUEST_TYPE_CD;
+alter table rmdad_grc_dev_sjena.request rename column REQUEST_JSON to REQUEST_JSON_CD;
+alter table rmdad_grc_dev_sjena.request rename column CREATED_BY   to CREATED_BY_NM;
+alter table rmdad_grc_dev_sjena.request rename column CREATED_AT   to CREATED_AT_TS;
+
+-- ===== requestrun =====
+alter table rmdad_grc_dev_sjena.requestrun rename column STATUS            to STATUS_CD;
+alter table rmdad_grc_dev_sjena.requestrun rename column TOTAL_UNITS       to TOTAL_UNITS_QT;
+alter table rmdad_grc_dev_sjena.requestrun rename column UNITS_TO_PROCESS  to UNITS_TO_PROCESS_QT;
+alter table rmdad_grc_dev_sjena.requestrun rename column STARTED_AT        to STARTED_AT_TS;
+alter table rmdad_grc_dev_sjena.requestrun rename column UPDATED_AT        to UPDATED_AT_TS;
+
+-- ===== requestlog =====
+alter table rmdad_grc_dev_sjena.requestlog rename column TX         to MESSAGE_TX;
+alter table rmdad_grc_dev_sjena.requestlog rename column POSTED_AT  to POSTED_AT_TS;
+
+-- ===== rf_product =====
+alter table rmdad_grc_dev_sjena.rf_product rename column CREATED_BY to CREATED_BY_NM;
+alter table rmdad_grc_dev_sjena.rf_product rename column VALID_FROM to VALID_FROM_TS;
+alter table rmdad_grc_dev_sjena.rf_product rename column VALID_TO   to VALID_TO_TS;
+
+-- ===== varmodel_entity =====
+alter table rmdad_grc_dev_sjena.varmodel_entity rename column CREATED_BY to CREATED_BY_NM;
+alter table rmdad_grc_dev_sjena.varmodel_entity rename column VALID_FROM to VALID_FROM_TS;
+alter table rmdad_grc_dev_sjena.varmodel_entity rename column VALID_TO   to VALID_TO_TS;
+
+-- ===== valuation =====
+alter table rmdad_grc_dev_sjena.valuation rename column SNAPSHOT to SNAPSHOT_CD;
+
+-- ===== sensitivitysplitstrips (gold) =====
+alter table rmdad_grc_dev_sjena.sensitivitysplitstrips rename column PNL_IDENTIFIER to PNL_ID;
+alter table rmdad_grc_dev_sjena.sensitivitysplitstrips rename column SNAPSHOT       to SNAPSHOT_CD;
+alter table rmdad_grc_dev_sjena.sensitivitysplitstrips rename column VALID_FROM     to VALID_FROM_TS;
+alter table rmdad_grc_dev_sjena.sensitivitysplitstrips rename column VALID_TO       to VALID_TO_TS;
+
+-- ===== vw_var_rf_mapping (gold) =====
+alter table rmdad_grc_dev_sjena.vw_var_rf_mapping rename column CONFIDENCE_LVL     to CONFIDENCE_LEVEL_QT;
+alter table rmdad_grc_dev_sjena.vw_var_rf_mapping rename column TIME_HORIZON       to TIME_HORIZON_CD;
+alter table rmdad_grc_dev_sjena.vw_var_rf_mapping rename column IS_OFFICIAL        to IS_OFFICIAL_CD;
+alter table rmdad_grc_dev_sjena.vw_var_rf_mapping rename column ALT_NAME           to ALT_MF_NM;
+alter table rmdad_grc_dev_sjena.vw_var_rf_mapping rename column CURRENCY           to CURRENCY_CD;
+alter table rmdad_grc_dev_sjena.vw_var_rf_mapping rename column CURVE_TYPE         to CURVE_INSTRUMENT_TYPE_CD;
+alter table rmdad_grc_dev_sjena.vw_var_rf_mapping rename column EFFECTIVE_CURRENCY to EFFECTIVE_CURRENCY_CD;
+alter table rmdad_grc_dev_sjena.vw_var_rf_mapping rename column FUTURE_TENOR       to FUTURE_TENOR_CD;
+alter table rmdad_grc_dev_sjena.vw_var_rf_mapping rename column INDEX_TENOR        to INDEX_TENOR_CD;
+alter table rmdad_grc_dev_sjena.vw_var_rf_mapping rename column INST_TYPE          to INST_TYPE_CD;
+
+-- ===== trade (gold) =====
+alter table rmdad_grc_dev_sjena.trade rename column SNAPSHOT to SNAPSHOT_CD;
