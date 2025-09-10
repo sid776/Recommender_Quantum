@@ -68,15 +68,7 @@ export default function CosmosReports() {
     }
   });
 
-  const { watch, setValue } = methods;
-  const reportName = watch("reportName");
-  const reportDate = watch("reportDate");
-
-  const reportNameValue = typeof reportName === "string" ? reportName : reportName?.value;
-  const reportNameLabel =
-    (typeof reportName === "object" ? reportName?.label : REPORTS.find(r => r.value === reportName)?.label) ||
-    String(reportNameValue || "");
-
+  const { setValue, getValues } = methods;
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [lastUrl, setLastUrl] = useState("");
@@ -85,9 +77,9 @@ export default function CosmosReports() {
   async function loadData() {
     setLoading(true);
     try {
-      const name = methods.getValues("reportName");
-      const nameVal = typeof name === "string" ? name : name?.value;
-      const dateStr = methods.getValues("reportDate");
+      const formVals = getValues();
+      const nameVal = typeof formVals.reportName === "string" ? formVals.reportName : formVals.reportName?.value;
+      const dateStr = formVals.reportDate;
       if (!nameVal || !dateStr) {
         setRows([]);
         setLastUrl("");
@@ -101,7 +93,6 @@ export default function CosmosReports() {
         setRows([]);
         return;
       }
-
       const json = await res.json();
       const data = Array.isArray(json)
         ? json
@@ -110,7 +101,6 @@ export default function CosmosReports() {
         : Array.isArray(json.rows)
         ? json.rows
         : [];
-
       setRows(data);
     } catch {
       setRows([]);
@@ -119,16 +109,25 @@ export default function CosmosReports() {
     }
   }
 
+  const reportName = methods.watch("reportName");
+  const reportNameLabel =
+    (typeof reportName === "object" ? reportName?.label : REPORTS.find((r) => r.value === reportName)?.label) ||
+    String((typeof reportName === "string" ? reportName : reportName?.value) || "");
+
   const columnDefs = useMemo(() => buildColumnDefs(rows, reportNameLabel), [rows, reportNameLabel]);
 
   return (
     <FormProvider {...methods}>
-      <Box className="mx-auto max-w-[1400px] space-y-4 p-4">
-        <Box className="bg-white rounded-lg shadow-lg" style={{ position: "relative", zIndex: 50 }}>
+      <Box className="mx-auto max-w-[1400px] space-y-4 p-4" style={{ overflow: "visible" }}>
+        <Box
+          className="bg-white rounded-lg shadow-lg"
+          style={{ position: "relative", zIndex: 9999, overflow: "visible" }}
+        >
           <Collapsible.Root open={panelOpen} onOpenChange={setPanelOpen}>
             <Box
               className="flex items-center justify-between px-4 py-3 cursor-pointer select-none"
               onClick={() => setPanelOpen((v) => !v)}
+              style={{ overflow: "visible" }}
             >
               <Text fontSize="lg" fontWeight="bold">{reportNameLabel}</Text>
               <HStack spacing={3}>
@@ -153,8 +152,8 @@ export default function CosmosReports() {
 
             <Collapsible.Content>
               <Box className="px-4 pb-4" style={{ overflow: "visible" }}>
-                <Wrap align="center" spacing="16px">
-                  <WrapItem style={{ minWidth: 280, position: "relative", zIndex: 9999 }}>
+                <Wrap align="center" spacing="16px" style={{ overflow: "visible" }}>
+                  <WrapItem style={{ minWidth: 280, position: "relative", zIndex: 9999, overflow: "visible" }}>
                     <DynamicSelect
                       id="reportName"
                       fieldName="reportName"
@@ -188,7 +187,7 @@ export default function CosmosReports() {
 
         <Box
           className="bg-white rounded-lg shadow-lg p-2"
-          style={{ height: "calc(100vh - 260px)", position: "relative", zIndex: 1 }}
+          style={{ height: "calc(100vh - 260px)", position: "relative", zIndex: 1, overflow: "visible" }}
         >
           {loading ? (
             <Skeleton height="100%" rounded="md" />
