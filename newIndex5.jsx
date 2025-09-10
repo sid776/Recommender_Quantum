@@ -124,7 +124,7 @@ export default function CosmosReports() {
   return (
     <FormProvider {...methods}>
       <Box className="mx-auto max-w-[1400px] space-y-4 p-4">
-        <Box className="bg-white rounded-lg shadow-lg">
+        <Box className="bg-white rounded-lg shadow-lg" style={{ position: "relative", zIndex: 50 }}>
           <Collapsible.Root open={panelOpen} onOpenChange={setPanelOpen}>
             <Box
               className="flex items-center justify-between px-4 py-3 cursor-pointer select-none"
@@ -154,7 +154,7 @@ export default function CosmosReports() {
             <Collapsible.Content>
               <Box className="px-4 pb-4" style={{ overflow: "visible" }}>
                 <Wrap align="center" spacing="16px">
-                  <WrapItem style={{ minWidth: 280, position: "relative", zIndex: 30 }}>
+                  <WrapItem style={{ minWidth: 280, position: "relative", zIndex: 60 }}>
                     <DynamicSelect
                       id="reportName"
                       fieldName="reportName"
@@ -163,16 +163,6 @@ export default function CosmosReports() {
                       dataLoader={async () => REPORTS}
                       onSelectionChange={(opt) => setValue("reportName", opt)}
                       defaultValue={REPORTS[0]}
-                      selectProps={{
-                        menuPortalTarget: typeof document !== "undefined" ? document.body : null,
-                        menuPosition: "fixed",
-                        menuPlacement: "auto",
-                        menuShouldScrollIntoView: false,
-                        styles: {
-                          menuPortal: (base) => ({ ...base, zIndex: 9999 }),
-                          menu: (base) => ({ ...base, zIndex: 9999 })
-                        }
-                      }}
                     />
                   </WrapItem>
 
@@ -196,7 +186,10 @@ export default function CosmosReports() {
           </Collapsible.Root>
         </Box>
 
-        <Box className="bg-white rounded-lg shadow-lg p-2" style={{ height: "calc(100vh - 260px)" }}>
+        <Box
+          className="bg-white rounded-lg shadow-lg p-2"
+          style={{ height: "calc(100vh - 260px)", position: "relative", zIndex: 1 }}
+        >
           {loading ? (
             <Skeleton height="100%" rounded="md" />
           ) : (
