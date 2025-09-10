@@ -1,6 +1,6 @@
 // frontend/src/components/pages/CosmosReports/index.jsx
-import React, { useEffect, useMemo, useState } from "react";
-import { Box, Wrap, WrapItem, Button } from "@chakra-ui/react";
+import React, { useMemo, useState } from "react";
+import { Box, Wrap, WrapItem, Button, Text } from "@chakra-ui/react";
 import { useForm, FormProvider } from "react-hook-form";
 import DynamicSelect from "../../elements/DynamicSelect.jsx";
 import InputFieldSet from "../../elements/InputFieldSet.jsx";
@@ -66,28 +66,37 @@ export default function CosmosReports() {
     }
   });
 
-  const { watch, setValue } = methods;
+  const { watch, setValue, getValues } = methods;
   const reportName = watch("reportName");
   const reportDate = watch("reportDate");
 
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState("");
 
   async function loadData() {
-    console.log("Load clicked");
+    setStatus("clicked");
     setLoading(true);
     try {
       setRows([{ rule_type: "probe", message: "Button works", report_date: "20250101" }]);
-      const name = methods.getValues("reportName");
-      const dateStr = methods.getValues("reportDate");
-      const y = dateStr?.slice(0, 4),
-        m = dateStr?.slice(5, 7),
-        d = dateStr?.slice(8, 10);
+
+      const name = getValues("reportName");
+      const dateStr = getValues("reportDate");
+      const y = dateStr?.slice(0, 4), m = dateStr?.slice(5, 7), d = dateStr?.slice(8, 10);
       const dateParam = y && m && d ? `${y}${m}${d}` : "";
-      const url = `/api/dq/${encodeURIComponent(name || "")}?report_date=${dateParam}&limit=500`;
-      console.log("GET", url);
+
+      if (!name || !dateParam) {
+        setStatus("missing params");
+        setRows([]);
+        return;
+      }
+
+      const url = `/api/dq/${encodeURIComponent(name)}?report_date=${dateParam}&limit=500`;
+      setStatus(`GET ${url}`);
+
       const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
       const json = await res.json();
       const data = Array.isArray(json)
         ? json
@@ -96,18 +105,16 @@ export default function CosmosReports() {
         : Array.isArray(json.rows)
         ? json.rows
         : [];
-      console.log("Rows received:", data.length);
+
+      setStatus(`rows: ${data.length}`);
       setRows(data);
     } catch (e) {
-      console.error("Failed to load report:", e);
+      setStatus(String(e));
+      setRows([]);
     } finally {
       setLoading(false);
     }
   }
-
-  useEffect(() => {
-    if (reportName && reportDate) loadData();
-  }, [reportName, reportDate]);
 
   const reportLabel = REPORTS.find((r) => r.value === reportName)?.label || reportName;
   const columnDefs = useMemo(() => buildColumnDefs(rows, reportLabel), [rows, reportLabel]);
@@ -141,7 +148,11 @@ export default function CosmosReports() {
               Load
             </Button>
           </WrapItem>
+          <WrapItem>
+            <Text fontSize="sm" color="gray.500">{status}</Text>
+          </WrapItem>
         </Wrap>
+
         <AgGridTable
           rowData={rows}
           columnDefs={columnDefs}
