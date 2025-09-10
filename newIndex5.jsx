@@ -1,206 +1,77 @@
-// frontend/src/components/pages/CosmosReports/index.jsx
-import React, { useMemo, useState } from "react";
-import { Box, Wrap, WrapItem, Button, Skeleton, HStack, Text, Collapsible } from "@chakra-ui/react";
-import { useForm, FormProvider } from "react-hook-form";
-import DynamicSelect from "../../elements/DynamicSelect.jsx";
-import InputFieldSet from "../../elements/InputFieldSet.jsx";
-import AgGridTable from "../../elements/AgGridTable.jsx";
+// frontend/src/components/elements/DynamicSelect.jsx
+import React from "react";
+import { Controller, useFormContext } from "react-hook-form";
+import AsyncSelect from "react-select/async";
 
-const prettify = (k) => k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-const isAllNullOrEmpty = (rows, k) => rows.every((r) => r == null || r[k] == null || r[k] === "");
+export default function DynamicSelect({
+  id,
+  fieldName,
+  label,
+  placeholder,
+  dataLoader,           // async () => [{label, value}, ...]
+  defaultValue,
+  onSelectionChange,    // (option) => void
+  disabled = false,
+  selectProps = {},     // optional passthrough for react-select props/styles
+}) {
+  const { control } = useFormContext();
 
-const PREFERRED_BY_REPORT = {
-  "DQ Summary": ["rule_type", "risk_factor_id", "book", "report_date", "2025", "2024"],
-  "DQ Staleness": ["rule_type", "risk_factor_id", "report_date", "days_stale", "2025", "2024"],
-  "DQ Outliers": ["risk_factor_id", "book", "report_date", "z_score"],
-  "DQ Availability": ["table_name", "partition", "availability", "report_date"],
-  "DQ Reasonability": ["risk_factor_id", "model", "report_date", "delta"],
-  "DQ Schema": ["table", "column", "datatype", "nullable", "report_date"]
-};
+  const loadOptions = async (input) => {
+    const res = typeof dataLoader === "function" ? await dataLoader(input) : [];
+    return Array.isArray(res) ? res : [];
+  };
 
-const buildColumnDefs = (rows, reportLabel) => {
-  if (!rows?.length) return [];
-  const keySet = new Set();
-  for (const r of rows) Object.keys(r || {}).forEach((k) => keySet.add(k));
-  const allKeys = Array.from(keySet);
-  const visibleKeys = allKeys.filter((k) => !isAllNullOrEmpty(rows, k));
-  const preferred = (PREFERRED_BY_REPORT[reportLabel] || []).filter((k) => visibleKeys.includes(k));
-  const nonPreferred = visibleKeys
-    .filter((k) => !preferred.includes(k))
-    .sort((a, b) => {
-      const ay = /^\d{4}$/.test(a), by = /^\d{4}$/.test(b);
-      if (ay && by) return Number(b) - Number(a);
-      if (ay) return 1;
-      if (by) return -1;
-      return a.localeCompare(b);
-    });
-  const ordered = [...preferred, ...nonPreferred];
-  return ordered.map((k) => ({
-    headerName: prettify(k),
-    field: k,
-    sortable: true,
-    filter: true,
-    resizable: true,
-    minWidth: /^\d{4}$/.test(k) ? 90 : 140,
-    valueFormatter: (p) =>
-      k === "report_date" && typeof p.value === "string" && /^\d{8}$/.test(p.value)
-        ? `${p.value.slice(0, 4)}-${p.value.slice(4, 6)}-${p.value.slice(6, 8)}`
-        : p.value
-  }));
-};
-
-const REPORTS = [
-  { label: "DQ Summary", value: "summary" },
-  { label: "DQ Staleness", value: "staleness" },
-  { label: "DQ Outliers", value: "outliers" },
-  { label: "DQ Availability", value: "availability" },
-  { label: "DQ Reasonability", value: "reasonability" },
-  { label: "DQ Schema", value: "schema" }
-];
-
-const REPORT_ENDPOINT = "/api/dq";
-
-export default function CosmosReports() {
-  const methods = useForm({
-    defaultValues: {
-      reportName: REPORTS[0],                                  // keep object {label,value}
-      reportDate: new Date().toISOString().slice(0, 10)
-    }
-  });
-
-  const { watch, setValue } = methods;
-  const reportName = watch("reportName");
-  const reportDate = watch("reportDate");
-
-  const reportNameValue = typeof reportName === "string" ? reportName : reportName?.value;
-  const reportNameLabel =
-    (typeof reportName === "object" ? reportName?.label : REPORTS.find(r => r.value === reportName)?.label) ||
-    String(reportNameValue || "");
-
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [lastUrl, setLastUrl] = useState("");
-  const [panelOpen, setPanelOpen] = useState(true);
-
-  async function loadData() {
-    setLoading(true);
-    try {
-      const name = methods.getValues("reportName");
-      const nameVal = typeof name === "string" ? name : name?.value;
-      const dateStr = methods.getValues("reportDate");
-      if (!nameVal || !dateStr) {
-        setRows([]);
-        setLastUrl("");
-        return;
-      }
-      const url = `${REPORT_ENDPOINT}/${encodeURIComponent(nameVal)}?report_date=${encodeURIComponent(dateStr)}&limit=500`;
-      setLastUrl(url);
-
-      const res = await fetch(url);
-      if (!res.ok) {
-        setRows([]);
-        return;
-      }
-
-      const json = await res.json();
-      const data = Array.isArray(json)
-        ? json
-        : Array.isArray(json.data)
-        ? json.data
-        : Array.isArray(json.rows)
-        ? json.rows
-        : [];
-
-      setRows(data);
-    } catch {
-      setRows([]);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const columnDefs = useMemo(() => buildColumnDefs(rows, reportNameLabel), [rows, reportNameLabel]);
+  const mergedStyles = {
+    menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+    menu: (base) => ({ ...base, zIndex: 9999 }),
+    control: (base) => ({ ...base, minHeight: 36 }),
+    ...selectProps.styles,
+  };
 
   return (
-    <FormProvider {...methods}>
-      <Box className="mx-auto max-w-[1400px] space-y-4 p-4">
-        <Box className="bg-white rounded-lg shadow-lg">
-          <Collapsible.Root open={panelOpen} onOpenChange={setPanelOpen}>
-            <Box
-              className="flex items-center justify-between px-4 py-3 cursor-pointer select-none"
-              onClick={() => setPanelOpen((v) => !v)}
-            >
-              <Text fontSize="lg" fontWeight="bold">{reportNameLabel}</Text>
-              <HStack spacing={3}>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={(e) => { e.stopPropagation(); setRows([]); setLastUrl(""); }}
-                >
-                  Clear
-                </Button>
-                <Button
-                  size="sm"
-                  colorScheme="green"
-                  onClick={(e) => { e.stopPropagation(); loadData(); }}
-                  isLoading={loading}
-                >
-                  Load
-                </Button>
-                <span className={`transition-transform ${panelOpen ? "rotate-180" : "rotate-0"}`}>▾</span>
-              </HStack>
-            </Box>
+    <div className="w-full">
+      {label ? (
+        <label htmlFor={id || fieldName} className="block text-sm font-medium mb-1">
+          {label}
+        </label>
+      ) : null}
 
-            <Collapsible.Content>
-              <Box className="px-4 pb-4" style={{ overflow: "visible" }}>
-                <Wrap align="center" spacing="16px">
-                  <WrapItem style={{ minWidth: 280, position: "relative", zIndex: 30 }}>
-                    <DynamicSelect
-                      id="reportName"
-                      fieldName="reportName"
-                      label="Report"
-                      placeholder="Select report"
-                      dataLoader={async () => REPORTS}
-                      onSelectionChange={(opt) => setValue("reportName", opt)} // store object
-                      defaultValue={REPORTS[0]}
-                    />
-                  </WrapItem>
+      <Controller
+        control={control}
+        name={fieldName}
+        defaultValue={defaultValue ?? null}
+        render={({ field: { onChange, value, ref } }) => (
+          <AsyncSelect
+            inputId={id || fieldName}
+            instanceId={id || fieldName}
+            cacheOptions
+            defaultOptions
+            loadOptions={loadOptions}
+            value={value || null}
+            isDisabled={disabled}
+            isClearable
+            placeholder={placeholder || "Select..."}
 
-                  <WrapItem style={{ minWidth: 220 }}>
-                    <InputFieldSet
-                      id="reportDate"
-                      fieldName="reportDate"
-                      label="Report Date (optional)"
-                      type="date"
-                    />
-                  </WrapItem>
-                </Wrap>
+            /* Ensure the menu overlays AG Grid / other containers */
+            menuPortalTarget={typeof document !== "undefined" ? document.body : null}
+            menuPosition="fixed"
+            menuPlacement="auto"
+            menuShouldScrollIntoView={false}
+            styles={mergedStyles}
 
-                {lastUrl ? (
-                  <Box mt={2} fontSize="xs" color="gray.600" wordBreak="break-all">
-                    {lastUrl}
-                  </Box>
-                ) : null}
-              </Box>
-            </Collapsible.Content>
-          </Collapsible.Root>
-        </Box>
+            classNamePrefix="ds"
+            className="min-w-[280px]"
 
-        <Box className="bg-white rounded-lg shadow-lg p-2" style={{ height: "calc(100vh - 260px)" }}>
-          {loading ? (
-            <Skeleton height="100%" rounded="md" />
-          ) : (
-            <AgGridTable
-              rowData={rows}
-              columnDefs={columnDefs}
-              pagination={true}
-              paginationPageSize={50}
-              defaultColDef={{ sortable: true, filter: true, resizable: true }}
-              style={{ height: "100%" }}
-            />
-          )}
-        </Box>
-      </Box>
-    </FormProvider>
+            onChange={(opt, meta) => {
+              onChange(opt || null);
+              if (onSelectionChange) onSelectionChange(opt || null, meta);
+            }}
+
+            {...selectProps}
+            ref={ref}
+          />
+        )}
+      />
+    </div>
   );
 }
