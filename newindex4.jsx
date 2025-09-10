@@ -1,8 +1,7 @@
 // frontend/src/components/pages/CosmosReports/index.jsx
 import React, { useEffect, useMemo, useState } from "react";
-import { Box, Wrap, WrapItem, Button, Skeleton, Alert, AlertIcon, HStack, Text } from "@chakra-ui/react";
+import { Box, Wrap, WrapItem, Button, Skeleton, HStack, Text, Collapsible } from "@chakra-ui/react";
 import { useForm, FormProvider } from "react-hook-form";
-import * as Collapsible from "@radix-ui/react-collapsible";
 import DynamicSelect from "../../elements/DynamicSelect.jsx";
 import InputFieldSet from "../../elements/InputFieldSet.jsx";
 import AgGridTable from "../../elements/AgGridTable.jsx";
@@ -61,25 +60,6 @@ const REPORTS = [
 
 const REPORT_ENDPOINT = "/api/dq";
 
-const SAMPLE_ROWS = [
-  {
-    rule_type: "staleness_check",
-    risk_factor_id: "FX_CNCNH_USD",
-    book: "BK001",
-    report_date: "20250404",
-    "2024": 0,
-    "2025": 1
-  },
-  {
-    rule_type: "staleness_check",
-    risk_factor_id: "IR_USD_LIBOR_3M",
-    book: "BK002",
-    report_date: "20250404",
-    "2024": 0,
-    "2025": 0
-  }
-];
-
 export default function CosmosReports() {
   const methods = useForm({
     defaultValues: {
@@ -94,13 +74,11 @@ export default function CosmosReports() {
 
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [errorText, setErrorText] = useState("");
   const [lastUrl, setLastUrl] = useState("");
   const [panelOpen, setPanelOpen] = useState(true);
 
   async function loadData() {
     setLoading(true);
-    setErrorText("");
     try {
       const name = methods.getValues("reportName");
       const dateStr = methods.getValues("reportDate");
@@ -112,14 +90,6 @@ export default function CosmosReports() {
       setLastUrl(url);
       const res = await fetch(url);
       if (!res.ok) {
-        let detail = "";
-        try {
-          const body = await res.json();
-          detail = body?.detail ? ` - ${JSON.stringify(body.detail)}` : "";
-        } catch {
-          try { detail = ` - ${await res.text()}`; } catch {}
-        }
-        setErrorText(`HTTP ${res.status}${detail}`);
         setRows([]);
         return;
       }
@@ -133,7 +103,6 @@ export default function CosmosReports() {
         : [];
       setRows(data);
     } catch {
-      setErrorText("Network or server error");
       setRows([]);
     } finally {
       setLoading(false);
@@ -152,11 +121,14 @@ export default function CosmosReports() {
       <Box className="mx-auto max-w-[1400px] space-y-4 p-4">
         <Box className="bg-white rounded-lg shadow-lg">
           <Collapsible.Root open={panelOpen} onOpenChange={setPanelOpen}>
-            <Box className="flex items-center justify-between px-4 py-3 cursor-pointer select-none" onClick={() => setPanelOpen((v) => !v)}>
+            <Box
+              className="flex items-center justify-between px-4 py-3 cursor-pointer select-none"
+              onClick={() => setPanelOpen((v) => !v)}
+            >
               <Text fontSize="lg" fontWeight="bold">{reportLabel}</Text>
               <HStack spacing={3}>
-                <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setRows(SAMPLE_ROWS); setErrorText(""); }}>
-                  Use Sample Data
+                <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setRows([]); }}>
+                  Clear
                 </Button>
                 <Button size="sm" colorScheme="green" onClick={(e) => { e.stopPropagation(); loadData(); }} isLoading={loading}>
                   Load
@@ -186,17 +158,9 @@ export default function CosmosReports() {
                       fieldName="reportDate"
                       label="Report Date"
                       type="date"
-                      registerOptions={{ required: "required" }}
                     />
                   </WrapItem>
                 </Wrap>
-
-                {errorText ? (
-                  <Alert status="error" mt={3}>
-                    <AlertIcon />
-                    {errorText}
-                  </Alert>
-                ) : null}
 
                 {lastUrl ? (
                   <Box mt={2} fontSize="xs" color="gray.600" wordBreak="break-all">
