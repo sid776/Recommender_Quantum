@@ -1,6 +1,6 @@
 // frontend/src/components/pages/CosmosReports/index.jsx
 import React, { useEffect, useMemo, useState } from "react";
-import { Box, Wrap, WrapItem, Button, Collapse, Flex, Text, Spacer, Skeleton } from "@chakra-ui/react";
+import { Box, Wrap, WrapItem, Button, Skeleton, Alert, AlertIcon, HStack, Text } from "@chakra-ui/react";
 import { useForm, FormProvider } from "react-hook-form";
 import DynamicSelect from "../../elements/DynamicSelect.jsx";
 import InputFieldSet from "../../elements/InputFieldSet.jsx";
@@ -60,6 +60,25 @@ const REPORTS = [
 
 const REPORT_ENDPOINT = "/api/dq";
 
+const SAMPLE_ROWS = [
+  {
+    rule_type: "staleness_check",
+    risk_factor_id: "FX_CNCNH_USD",
+    book: "BK001",
+    report_date: "20250404",
+    "2024": 0,
+    "2025": 1
+  },
+  {
+    rule_type: "staleness_check",
+    risk_factor_id: "IR_USD_LIBOR_3M",
+    book: "BK002",
+    report_date: "20250404",
+    "2024": 0,
+    "2025": 0
+  }
+];
+
 export default function CosmosReports() {
   const methods = useForm({
     defaultValues: {
@@ -75,7 +94,7 @@ export default function CosmosReports() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [errorText, setErrorText] = useState("");
-  const [paramsOpen, setParamsOpen] = useState(true);
+  const [lastUrl, setLastUrl] = useState("");
 
   async function loadData() {
     setLoading(true);
@@ -88,18 +107,19 @@ export default function CosmosReports() {
         return;
       }
       const url = `${REPORT_ENDPOINT}/${encodeURIComponent(name)}?report_date=${encodeURIComponent(dateStr)}&limit=500`;
+      setLastUrl(url);
       const res = await fetch(url);
       if (!res.ok) {
         let detail = "";
         try {
           const body = await res.json();
-          detail = body?.detail ? ` - ${typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail)}` : "";
+          detail = body?.detail ? ` - ${JSON.stringify(body.detail)}` : "";
         } catch {
           try {
             detail = ` - ${await res.text()}`;
           } catch {}
         }
-        setErrorText(`Error: HTTP ${res.status}${detail}`);
+        setErrorText(`HTTP ${res.status}${detail}`);
         setRows([]);
         return;
       }
@@ -113,7 +133,7 @@ export default function CosmosReports() {
         : [];
       setRows(data);
     } catch {
-      setErrorText("Error loading data");
+      setErrorText("Network or server error");
       setRows([]);
     } finally {
       setLoading(false);
@@ -129,49 +149,61 @@ export default function CosmosReports() {
 
   return (
     <FormProvider {...methods}>
-      <Box className="overflow-auto" height="calc(100vh - 70px)" p={4}>
-        <Box bg="white" rounded="lg" shadow="md">
-          <Flex align="center" px={4} py={3} borderBottom="1px solid" borderColor="gray.100" cursor="pointer" onClick={() => setParamsOpen((o) => !o)}>
-            <Text fontWeight="bold">Run Parameters</Text>
-            <Spacer />
-            <Button size="sm" onClick={(e) => { e.stopPropagation(); loadData(); }} isLoading={loading} colorScheme="green">Load</Button>
-          </Flex>
-          <Collapse in={paramsOpen} animateOpacity>
-            <Box px={4} py={4}>
-              <Wrap align="center" spacing="16px">
-                <WrapItem>
-                  <DynamicSelect
-                    id="reportName"
-                    fieldName="reportName"
-                    label="Report"
-                    placeholder="Select report"
-                    dataLoader={async () => REPORTS}
-                    onSelectionChange={(opt) => setValue("reportName", opt?.value)}
-                    defaultValue={REPORTS[0]}
-                  />
-                </WrapItem>
-                <WrapItem>
-                  <InputFieldSet
-                    id="reportDate"
-                    fieldName="reportDate"
-                    label="Report Date"
-                    type="date"
-                    registerOptions={{ required: "required" }}
-                  />
-                </WrapItem>
-                {errorText ? (
-                  <WrapItem>
-                    <Box fontSize="sm" color="red.500" maxW="480px">{errorText}</Box>
-                  </WrapItem>
-                ) : null}
-              </Wrap>
+      <Box className="mx-auto max-w-[1400px] space-y-4 p-4">
+        <Box className="bg-white rounded-lg shadow-lg p-4">
+          <HStack justify="space-between" align="center" mb={2}>
+            <Text fontSize="lg" fontWeight="bold">{reportLabel}</Text>
+            <HStack spacing={3}>
+              <Button size="sm" colorScheme="gray" variant="outline" onClick={() => { setRows(SAMPLE_ROWS); setErrorText(""); }}>
+                Use Sample Data
+              </Button>
+              <Button size="sm" colorScheme="green" onClick={loadData} isLoading={loading}>
+                Load
+              </Button>
+            </HStack>
+          </HStack>
+
+          <Wrap align="center" spacing="16px">
+            <WrapItem>
+              <DynamicSelect
+                id="reportName"
+                fieldName="reportName"
+                label="Report"
+                placeholder="Select report"
+                dataLoader={async () => REPORTS}
+                onSelectionChange={(opt) => setValue("reportName", opt?.value)}
+                defaultValue={REPORTS[0]}
+              />
+            </WrapItem>
+
+            <WrapItem>
+              <InputFieldSet
+                id="reportDate"
+                fieldName="reportDate"
+                label="Report Date"
+                type="date"
+                registerOptions={{ required: "required" }}
+              />
+            </WrapItem>
+          </Wrap>
+
+          {errorText ? (
+            <Alert status="error" mt={3}>
+              <AlertIcon />
+              {errorText}
+            </Alert>
+          ) : null}
+
+          {lastUrl ? (
+            <Box mt={2} fontSize="xs" color="gray.600" wordBreak="break-all">
+              {lastUrl}
             </Box>
-          </Collapse>
+          ) : null}
         </Box>
 
-        <Box mt={4}>
-          {loading && rows.length === 0 ? (
-            <Skeleton height="240px" rounded="md" />
+        <Box className="bg-white rounded-lg shadow-lg p-2">
+          {loading ? (
+            <Skeleton height="520px" rounded="md" />
           ) : (
             <AgGridTable
               rowData={rows}
