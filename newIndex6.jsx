@@ -74,6 +74,7 @@ export default function CosmosReports() {
   const [loading, setLoading] = useState(false);
   const [lastUrl, setLastUrl] = useState("");
   const [panelOpen, setPanelOpen] = useState(true);
+  const [menuSpace, setMenuSpace] = useState(false); // pushes grid down while select is open/focused
 
   async function loadData() {
     setLoading(true);
@@ -121,25 +122,15 @@ export default function CosmosReports() {
 
   return (
     <FormProvider {...methods}>
-      <Box
-        className="mx-auto max-w-[1400px] space-y-4 p-4"
-        style={{ overflow: "visible", position: "relative", zIndex: 0 }}
-      >
+      <Box className="mx-auto max-w-[1400px] space-y-4 p-4" style={{ overflow: "visible" }}>
         <Box
           className="bg-white rounded-lg shadow-lg"
-          style={{
-            position: "relative",
-            zIndex: 999999,        // force above grid
-            overflow: "visible",
-            paddingBottom: 12,     // breathing room for menu
-            marginBottom: 12
-          }}
+          style={{ position: "relative", zIndex: 9999, overflow: "visible" }}
         >
           <Collapsible.Root open={panelOpen} onOpenChange={setPanelOpen}>
             <Box
               className="flex items-center justify-between px-4 py-3 cursor-pointer select-none"
               onClick={() => setPanelOpen((v) => !v)}
-              style={{ overflow: "visible" }}
             >
               <Text fontSize="lg" fontWeight="bold">{reportLabel}</Text>
               <HStack spacing={3}>
@@ -163,16 +154,14 @@ export default function CosmosReports() {
             </Box>
 
             <Collapsible.Content>
-              <Box className="px-4 pb-4" style={{ overflow: "visible" }}>
+              <Box
+                className="px-4 pb-4"
+                style={{ overflow: "visible" }}
+                onFocusCapture={() => setMenuSpace(true)}
+                onBlurCapture={() => setMenuSpace(false)}
+              >
                 <Wrap align="center" spacing="16px" style={{ overflow: "visible" }}>
-                  <WrapItem
-                    style={{
-                      minWidth: 280,
-                      position: "relative",
-                      zIndex: 999999,    // select stack
-                      overflow: "visible"
-                    }}
-                  >
+                  <WrapItem style={{ minWidth: 280, position: "relative", zIndex: 10000, overflow: "visible" }}>
                     <DynamicSelect
                       id="reportName"
                       fieldName="reportName"
@@ -184,7 +173,7 @@ export default function CosmosReports() {
                     />
                   </WrapItem>
 
-                  <WrapItem style={{ minWidth: 220, position: "relative", zIndex: 10 }}>
+                  <WrapItem style={{ minWidth: 220 }}>
                     <InputFieldSet
                       id="reportDate"
                       fieldName="reportDate"
@@ -199,6 +188,8 @@ export default function CosmosReports() {
                     {lastUrl}
                   </Box>
                 ) : null}
+
+                {menuSpace ? <Box height="320px" /> : null}
               </Box>
             </Collapsible.Content>
           </Collapsible.Root>
@@ -206,12 +197,7 @@ export default function CosmosReports() {
 
         <Box
           className="bg-white rounded-lg shadow-lg p-2"
-          style={{
-            height: "calc(100vh - 260px)",
-            position: "relative",
-            zIndex: 1,             // below header/select
-            overflow: "visible"
-          }}
+          style={{ height: "calc(100vh - 260px)", position: "relative", zIndex: 1, overflow: "visible" }}
         >
           {loading ? (
             <Skeleton height="100%" rounded="md" />
