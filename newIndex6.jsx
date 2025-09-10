@@ -124,15 +124,11 @@ export default function CosmosReports() {
   return (
     <FormProvider {...methods}>
       <Box className="mx-auto max-w-[1400px] space-y-4 p-4">
-        <Box
-          className="bg-white rounded-lg shadow-lg"
-          style={{ position: "relative", zIndex: 1000000, overflow: "visible" }}
-        >
+        <Box className="bg-white rounded-lg shadow-lg" style={{ position: "relative", zIndex: 50 }}>
           <Collapsible.Root open={panelOpen} onOpenChange={setPanelOpen}>
             <Box
               className="flex items-center justify-between px-4 py-3 cursor-pointer select-none"
               onClick={() => setPanelOpen((v) => !v)}
-              style={{ position: "relative", zIndex: 1000000 }}
             >
               <Text fontSize="lg" fontWeight="bold">{reportNameLabel}</Text>
               <HStack spacing={3}>
@@ -156,12 +152,9 @@ export default function CosmosReports() {
             </Box>
 
             <Collapsible.Content>
-              <Box
-                className="px-4 pb-4"
-                style={{ overflow: "visible", position: "relative", zIndex: 1000000 }}
-              >
+              <Box className="px-4 pb-4" style={{ overflow: "visible" }}>
                 <Wrap align="center" spacing="16px">
-                  <WrapItem style={{ minWidth: 280, position: "relative", zIndex: 1000001, overflow: "visible" }}>
+                  <WrapItem style={{ minWidth: 280, position: "relative", zIndex: 9999 }}>
                     <DynamicSelect
                       id="reportName"
                       fieldName="reportName"
@@ -170,12 +163,10 @@ export default function CosmosReports() {
                       dataLoader={async () => REPORTS}
                       onSelectionChange={(opt) => setValue("reportName", opt)}
                       defaultValue={REPORTS[0]}
-                      menuPortalTarget={typeof document !== "undefined" ? document.body : null}
-                      menuPosition="fixed"
                     />
                   </WrapItem>
 
-                  <WrapItem style={{ minWidth: 220, position: "relative", zIndex: 1000000 }}>
+                  <WrapItem style={{ minWidth: 220 }}>
                     <InputFieldSet
                       id="reportDate"
                       fieldName="reportDate"
