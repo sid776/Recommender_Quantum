@@ -44,4 +44,112 @@ const buildColumnDefs = (rows, reportLabel) => {
     minWidth: /^\d{4}$/.test(k) ? 90 : 140,
     valueFormatter: (p) =>
       k === "report_date" && typeof p.value === "string" && /^\d{8}$/.test(p.value)
-        ?
+        ? `${p.value.slice(0, 4)}-${p.value.slice(4, 6)}-${p.value.slice(6, 8)}`
+        : p.value
+  }));
+};
+
+const REPORTS = [
+  { label: "DQ Summary", value: "summary" },
+  { label: "DQ Staleness", value: "staleness" },
+  { label: "DQ Outliers", value: "outliers" },
+  { label: "DQ Availability", value: "availability" },
+  { label: "DQ Reasonability", value: "reasonability" },
+  { label: "DQ Schema", value: "schema" }
+];
+
+export default function CosmosReports() {
+  const methods = useForm({
+    defaultValues: {
+      reportName: REPORTS[0].value,
+      reportDate: new Date().toISOString().slice(0, 10)
+    }
+  });
+
+  const { watch, setValue } = methods;
+  const reportName = watch("reportName");
+  const reportDate = watch("reportDate");
+
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  async function loadData() {
+    console.log("Load clicked");
+    setLoading(true);
+    try {
+      setRows([{ rule_type: "probe", message: "Button works", report_date: "20250101" }]);
+      const name = methods.getValues("reportName");
+      const dateStr = methods.getValues("reportDate");
+      const y = dateStr?.slice(0, 4),
+        m = dateStr?.slice(5, 7),
+        d = dateStr?.slice(8, 10);
+      const dateParam = y && m && d ? `${y}${m}${d}` : "";
+      const url = `/api/dq/${encodeURIComponent(name || "")}?report_date=${dateParam}&limit=500`;
+      console.log("GET", url);
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      const data = Array.isArray(json)
+        ? json
+        : Array.isArray(json.data)
+        ? json.data
+        : Array.isArray(json.rows)
+        ? json.rows
+        : [];
+      console.log("Rows received:", data.length);
+      setRows(data);
+    } catch (e) {
+      console.error("Failed to load report:", e);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (reportName && reportDate) loadData();
+  }, [reportName, reportDate]);
+
+  const reportLabel = REPORTS.find((r) => r.value === reportName)?.label || reportName;
+  const columnDefs = useMemo(() => buildColumnDefs(rows, reportLabel), [rows, reportLabel]);
+
+  return (
+    <FormProvider {...methods}>
+      <Box p={4}>
+        <Wrap align="center" mb={4} spacing="16px">
+          <WrapItem>
+            <DynamicSelect
+              id="reportName"
+              fieldName="reportName"
+              label="Report"
+              placeholder="Select report"
+              dataLoader={async () => REPORTS}
+              onSelectionChange={(opt) => setValue("reportName", opt?.value)}
+              defaultValue={REPORTS[0]}
+            />
+          </WrapItem>
+          <WrapItem>
+            <InputFieldSet
+              id="reportDate"
+              fieldName="reportDate"
+              label="Report Date"
+              type="date"
+              registerOptions={{ required: "required" }}
+            />
+          </WrapItem>
+          <WrapItem>
+            <Button onClick={loadData} isLoading={loading} colorScheme="green">
+              Load
+            </Button>
+          </WrapItem>
+        </Wrap>
+        <AgGridTable
+          rowData={rows}
+          columnDefs={columnDefs}
+          pagination={true}
+          paginationPageSize={50}
+          defaultColDef={{ sortable: true, filter: true, resizable: true }}
+        />
+      </Box>
+    </FormProvider>
+  );
+}
