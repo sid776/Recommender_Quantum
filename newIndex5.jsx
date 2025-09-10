@@ -1,5 +1,5 @@
 // frontend/src/components/pages/CosmosReports/index.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Box, Wrap, WrapItem, Button, Skeleton, HStack, Text, Collapsible } from "@chakra-ui/react";
 import { useForm, FormProvider } from "react-hook-form";
 import DynamicSelect from "../../elements/DynamicSelect.jsx";
@@ -63,16 +63,15 @@ const REPORT_ENDPOINT = "/api/dq";
 export default function CosmosReports() {
   const methods = useForm({
     defaultValues: {
-      reportName: REPORTS[0],                         // keep an OBJECT like Calculator does
+      reportName: REPORTS[0],                                  // keep object {label,value}
       reportDate: new Date().toISOString().slice(0, 10)
     }
   });
 
   const { watch, setValue } = methods;
-  const reportName = watch("reportName");             // can be string OR {label,value}
+  const reportName = watch("reportName");
   const reportDate = watch("reportDate");
 
-  // normalize: always derive a string value + label
   const reportNameValue = typeof reportName === "string" ? reportName : reportName?.value;
   const reportNameLabel =
     (typeof reportName === "object" ? reportName?.label : REPORTS.find(r => r.value === reportName)?.label) ||
@@ -91,6 +90,7 @@ export default function CosmosReports() {
       const dateStr = methods.getValues("reportDate");
       if (!nameVal || !dateStr) {
         setRows([]);
+        setLastUrl("");
         return;
       }
       const url = `${REPORT_ENDPOINT}/${encodeURIComponent(nameVal)}?report_date=${encodeURIComponent(dateStr)}&limit=500`;
@@ -119,10 +119,6 @@ export default function CosmosReports() {
     }
   }
 
-  useEffect(() => {
-    if (reportNameValue && reportDate) loadData();
-  }, [reportNameValue, reportDate]);
-
   const columnDefs = useMemo(() => buildColumnDefs(rows, reportNameLabel), [rows, reportNameLabel]);
 
   return (
@@ -139,7 +135,7 @@ export default function CosmosReports() {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={(e) => { e.stopPropagation(); setRows([]); }}
+                  onClick={(e) => { e.stopPropagation(); setRows([]); setLastUrl(""); }}
                 >
                   Clear
                 </Button>
@@ -156,16 +152,16 @@ export default function CosmosReports() {
             </Box>
 
             <Collapsible.Content>
-              <Box className="px-4 pb-4">
+              <Box className="px-4 pb-4" style={{ overflow: "visible" }}>
                 <Wrap align="center" spacing="16px">
-                  <WrapItem style={{ minWidth: 280 }}>
+                  <WrapItem style={{ minWidth: 280, position: "relative", zIndex: 30 }}>
                     <DynamicSelect
                       id="reportName"
                       fieldName="reportName"
                       label="Report"
                       placeholder="Select report"
                       dataLoader={async () => REPORTS}
-                      onSelectionChange={(opt) => setValue("reportName", opt)}  // store OBJECT consistently
+                      onSelectionChange={(opt) => setValue("reportName", opt)} // store object
                       defaultValue={REPORTS[0]}
                     />
                   </WrapItem>
