@@ -63,14 +63,20 @@ const REPORT_ENDPOINT = "/api/dq";
 export default function CosmosReports() {
   const methods = useForm({
     defaultValues: {
-      reportName: REPORTS[0].value,
+      reportName: REPORTS[0],                         // keep an OBJECT like Calculator does
       reportDate: new Date().toISOString().slice(0, 10)
     }
   });
 
   const { watch, setValue } = methods;
-  const reportName = watch("reportName");
+  const reportName = watch("reportName");             // can be string OR {label,value}
   const reportDate = watch("reportDate");
+
+  // normalize: always derive a string value + label
+  const reportNameValue = typeof reportName === "string" ? reportName : reportName?.value;
+  const reportNameLabel =
+    (typeof reportName === "object" ? reportName?.label : REPORTS.find(r => r.value === reportName)?.label) ||
+    String(reportNameValue || "");
 
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -81,12 +87,13 @@ export default function CosmosReports() {
     setLoading(true);
     try {
       const name = methods.getValues("reportName");
+      const nameVal = typeof name === "string" ? name : name?.value;
       const dateStr = methods.getValues("reportDate");
-      if (!name || !dateStr) {
+      if (!nameVal || !dateStr) {
         setRows([]);
         return;
       }
-      const url = `${REPORT_ENDPOINT}/${encodeURIComponent(name)}?report_date=${encodeURIComponent(dateStr)}&limit=500`;
+      const url = `${REPORT_ENDPOINT}/${encodeURIComponent(nameVal)}?report_date=${encodeURIComponent(dateStr)}&limit=500`;
       setLastUrl(url);
 
       const res = await fetch(url);
@@ -113,11 +120,10 @@ export default function CosmosReports() {
   }
 
   useEffect(() => {
-    if (reportName && reportDate) loadData();
-  }, [reportName, reportDate]);
+    if (reportNameValue && reportDate) loadData();
+  }, [reportNameValue, reportDate]);
 
-  const reportLabel = REPORTS.find((r) => r.value === reportName)?.label || reportName;
-  const columnDefs = useMemo(() => buildColumnDefs(rows, reportLabel), [rows, reportLabel]);
+  const columnDefs = useMemo(() => buildColumnDefs(rows, reportNameLabel), [rows, reportNameLabel]);
 
   return (
     <FormProvider {...methods}>
@@ -128,7 +134,7 @@ export default function CosmosReports() {
               className="flex items-center justify-between px-4 py-3 cursor-pointer select-none"
               onClick={() => setPanelOpen((v) => !v)}
             >
-              <Text fontSize="lg" fontWeight="bold">{reportLabel}</Text>
+              <Text fontSize="lg" fontWeight="bold">{reportNameLabel}</Text>
               <HStack spacing={3}>
                 <Button
                   size="sm"
@@ -152,19 +158,19 @@ export default function CosmosReports() {
             <Collapsible.Content>
               <Box className="px-4 pb-4">
                 <Wrap align="center" spacing="16px">
-                  <WrapItem>
+                  <WrapItem style={{ minWidth: 280 }}>
                     <DynamicSelect
                       id="reportName"
                       fieldName="reportName"
                       label="Report"
                       placeholder="Select report"
                       dataLoader={async () => REPORTS}
-                      onSelectionChange={(opt) => setValue("reportName", opt?.value)}
+                      onSelectionChange={(opt) => setValue("reportName", opt)}  // store OBJECT consistently
                       defaultValue={REPORTS[0]}
                     />
                   </WrapItem>
 
-                  <WrapItem>
+                  <WrapItem style={{ minWidth: 220 }}>
                     <InputFieldSet
                       id="reportDate"
                       fieldName="reportDate"
