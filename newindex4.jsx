@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Box, Wrap, WrapItem, Button, Skeleton, Alert, AlertIcon, HStack, Text } from "@chakra-ui/react";
 import { useForm, FormProvider } from "react-hook-form";
+import * as Collapsible from "@radix-ui/react-collapsible";
 import DynamicSelect from "../../elements/DynamicSelect.jsx";
 import InputFieldSet from "../../elements/InputFieldSet.jsx";
 import AgGridTable from "../../elements/AgGridTable.jsx";
@@ -95,6 +96,7 @@ export default function CosmosReports() {
   const [loading, setLoading] = useState(false);
   const [errorText, setErrorText] = useState("");
   const [lastUrl, setLastUrl] = useState("");
+  const [panelOpen, setPanelOpen] = useState(true);
 
   async function loadData() {
     setLoading(true);
@@ -115,9 +117,7 @@ export default function CosmosReports() {
           const body = await res.json();
           detail = body?.detail ? ` - ${JSON.stringify(body.detail)}` : "";
         } catch {
-          try {
-            detail = ` - ${await res.text()}`;
-          } catch {}
+          try { detail = ` - ${await res.text()}`; } catch {}
         }
         setErrorText(`HTTP ${res.status}${detail}`);
         setRows([]);
@@ -150,55 +150,62 @@ export default function CosmosReports() {
   return (
     <FormProvider {...methods}>
       <Box className="mx-auto max-w-[1400px] space-y-4 p-4">
-        <Box className="bg-white rounded-lg shadow-lg p-4">
-          <HStack justify="space-between" align="center" mb={2}>
-            <Text fontSize="lg" fontWeight="bold">{reportLabel}</Text>
-            <HStack spacing={3}>
-              <Button size="sm" colorScheme="gray" variant="outline" onClick={() => { setRows(SAMPLE_ROWS); setErrorText(""); }}>
-                Use Sample Data
-              </Button>
-              <Button size="sm" colorScheme="green" onClick={loadData} isLoading={loading}>
-                Load
-              </Button>
-            </HStack>
-          </HStack>
-
-          <Wrap align="center" spacing="16px">
-            <WrapItem>
-              <DynamicSelect
-                id="reportName"
-                fieldName="reportName"
-                label="Report"
-                placeholder="Select report"
-                dataLoader={async () => REPORTS}
-                onSelectionChange={(opt) => setValue("reportName", opt?.value)}
-                defaultValue={REPORTS[0]}
-              />
-            </WrapItem>
-
-            <WrapItem>
-              <InputFieldSet
-                id="reportDate"
-                fieldName="reportDate"
-                label="Report Date"
-                type="date"
-                registerOptions={{ required: "required" }}
-              />
-            </WrapItem>
-          </Wrap>
-
-          {errorText ? (
-            <Alert status="error" mt={3}>
-              <AlertIcon />
-              {errorText}
-            </Alert>
-          ) : null}
-
-          {lastUrl ? (
-            <Box mt={2} fontSize="xs" color="gray.600" wordBreak="break-all">
-              {lastUrl}
+        <Box className="bg-white rounded-lg shadow-lg">
+          <Collapsible.Root open={panelOpen} onOpenChange={setPanelOpen}>
+            <Box className="flex items-center justify-between px-4 py-3 cursor-pointer select-none" onClick={() => setPanelOpen((v) => !v)}>
+              <Text fontSize="lg" fontWeight="bold">{reportLabel}</Text>
+              <HStack spacing={3}>
+                <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setRows(SAMPLE_ROWS); setErrorText(""); }}>
+                  Use Sample Data
+                </Button>
+                <Button size="sm" colorScheme="green" onClick={(e) => { e.stopPropagation(); loadData(); }} isLoading={loading}>
+                  Load
+                </Button>
+                <span className={`transition-transform ${panelOpen ? "rotate-180" : "rotate-0"}`}>▾</span>
+              </HStack>
             </Box>
-          ) : null}
+
+            <Collapsible.Content>
+              <Box className="px-4 pb-4">
+                <Wrap align="center" spacing="16px">
+                  <WrapItem>
+                    <DynamicSelect
+                      id="reportName"
+                      fieldName="reportName"
+                      label="Report"
+                      placeholder="Select report"
+                      dataLoader={async () => REPORTS}
+                      onSelectionChange={(opt) => setValue("reportName", opt?.value)}
+                      defaultValue={REPORTS[0]}
+                    />
+                  </WrapItem>
+
+                  <WrapItem>
+                    <InputFieldSet
+                      id="reportDate"
+                      fieldName="reportDate"
+                      label="Report Date"
+                      type="date"
+                      registerOptions={{ required: "required" }}
+                    />
+                  </WrapItem>
+                </Wrap>
+
+                {errorText ? (
+                  <Alert status="error" mt={3}>
+                    <AlertIcon />
+                    {errorText}
+                  </Alert>
+                ) : null}
+
+                {lastUrl ? (
+                  <Box mt={2} fontSize="xs" color="gray.600" wordBreak="break-all">
+                    {lastUrl}
+                  </Box>
+                ) : null}
+              </Box>
+            </Collapsible.Content>
+          </Collapsible.Root>
         </Box>
 
         <Box className="bg-white rounded-lg shadow-lg p-2">
