@@ -68,7 +68,7 @@ export default function CosmosReports() {
     }
   });
 
-  const { setValue, getValues } = methods;
+  const { setValue, getValues, watch } = methods;
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [lastUrl, setLastUrl] = useState("");
@@ -87,7 +87,6 @@ export default function CosmosReports() {
       }
       const url = `${REPORT_ENDPOINT}/${encodeURIComponent(nameVal)}?report_date=${encodeURIComponent(dateStr)}&limit=500`;
       setLastUrl(url);
-
       const res = await fetch(url);
       if (!res.ok) {
         setRows([]);
@@ -109,7 +108,7 @@ export default function CosmosReports() {
     }
   }
 
-  const reportName = methods.watch("reportName");
+  const reportName = watch("reportName");
   const reportNameLabel =
     (typeof reportName === "object" ? reportName?.label : REPORTS.find((r) => r.value === reportName)?.label) ||
     String((typeof reportName === "string" ? reportName : reportName?.value) || "");
@@ -121,7 +120,7 @@ export default function CosmosReports() {
       <Box className="mx-auto max-w-[1400px] space-y-4 p-4" style={{ overflow: "visible" }}>
         <Box
           className="bg-white rounded-lg shadow-lg"
-          style={{ position: "relative", zIndex: 9999, overflow: "visible" }}
+          style={{ position: "relative", zIndex: 9999, overflow: "visible", paddingBottom: 280 }}
         >
           <Collapsible.Root open={panelOpen} onOpenChange={setPanelOpen}>
             <Box
@@ -187,7 +186,7 @@ export default function CosmosReports() {
 
         <Box
           className="bg-white rounded-lg shadow-lg p-2"
-          style={{ height: "calc(100vh - 260px)", position: "relative", zIndex: 1, overflow: "visible" }}
+          style={{ height: "calc(100vh - 260px)", position: "relative", zIndex: 1, overflow: "visible", marginTop: 0 }}
         >
           {loading ? (
             <Skeleton height="100%" rounded="md" />
