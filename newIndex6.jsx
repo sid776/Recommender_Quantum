@@ -68,7 +68,7 @@ export default function CosmosReports() {
     }
   });
 
-  const { setValue, getValues } = methods;
+  const { setValue, getValues, watch } = methods;
 
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -112,7 +112,7 @@ export default function CosmosReports() {
     }
   }
 
-  const reportObj = methods.watch("reportName");
+  const reportObj = watch("reportName");
   const reportLabel =
     (typeof reportObj === "object" ? reportObj?.label : REPORTS.find((r) => r.value === reportObj)?.label) ||
     String(reportObj || "");
@@ -121,10 +121,19 @@ export default function CosmosReports() {
 
   return (
     <FormProvider {...methods}>
-      <Box className="mx-auto max-w-[1400px] space-y-4 p-4" style={{ overflow: "visible" }}>
+      <Box
+        className="mx-auto max-w-[1400px] space-y-4 p-4"
+        style={{ overflow: "visible", position: "relative", zIndex: 0 }}
+      >
         <Box
           className="bg-white rounded-lg shadow-lg"
-          style={{ position: "relative", zIndex: 100, overflow: "visible", paddingBottom: 8 }}
+          style={{
+            position: "relative",
+            zIndex: 999999,        // force above grid
+            overflow: "visible",
+            paddingBottom: 12,     // breathing room for menu
+            marginBottom: 12
+          }}
         >
           <Collapsible.Root open={panelOpen} onOpenChange={setPanelOpen}>
             <Box
@@ -156,7 +165,14 @@ export default function CosmosReports() {
             <Collapsible.Content>
               <Box className="px-4 pb-4" style={{ overflow: "visible" }}>
                 <Wrap align="center" spacing="16px" style={{ overflow: "visible" }}>
-                  <WrapItem style={{ minWidth: 280, position: "relative", zIndex: 1000, overflow: "visible" }}>
+                  <WrapItem
+                    style={{
+                      minWidth: 280,
+                      position: "relative",
+                      zIndex: 999999,    // select stack
+                      overflow: "visible"
+                    }}
+                  >
                     <DynamicSelect
                       id="reportName"
                       fieldName="reportName"
@@ -168,7 +184,7 @@ export default function CosmosReports() {
                     />
                   </WrapItem>
 
-                  <WrapItem style={{ minWidth: 220, position: "relative", zIndex: 500 }}>
+                  <WrapItem style={{ minWidth: 220, position: "relative", zIndex: 10 }}>
                     <InputFieldSet
                       id="reportDate"
                       fieldName="reportDate"
@@ -190,7 +206,12 @@ export default function CosmosReports() {
 
         <Box
           className="bg-white rounded-lg shadow-lg p-2"
-          style={{ height: "calc(100vh - 260px)", position: "relative", zIndex: 1, overflow: "visible" }}
+          style={{
+            height: "calc(100vh - 260px)",
+            position: "relative",
+            zIndex: 1,             // below header/select
+            overflow: "visible"
+          }}
         >
           {loading ? (
             <Skeleton height="100%" rounded="md" />
