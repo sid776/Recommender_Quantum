@@ -1,0 +1,4 @@
+-- Example in Snowflake
+CREATE SCHEMA IF NOT EXISTS rmdad_grc_dev_sjena;
+CREATE TABLE rmdad_grc_dev_sjena.riskfactor CLONE rmdad_grc_dev.ussparc_silver.riskfactor;
+-- repeat for each table you need
