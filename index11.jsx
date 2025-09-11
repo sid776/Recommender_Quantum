@@ -71,6 +71,7 @@ export default function CosmosReports() {
   const { setValue, getValues, watch } = methods;
 
   const [rows, setRows] = useState([]);
+  the
   const [loading, setLoading] = useState(false);
   const [menuSpace, setMenuSpace] = useState(false);
 
@@ -93,7 +94,9 @@ export default function CosmosReports() {
         setRows([]);
         return;
       }
-      const url = `${REPORT_ENDPOINT}/${encodeURIComponent(nameVal)}?report_date=${encodeURIComponent(dateStr)}&limit=500`;
+      const url = `${REPORT_ENDPOINT}/${encodeURIComponent(nameVal)}?report_date=${encodeURIComponent(
+        dateStr
+      )}&limit=500`;
       const res = await fetch(url);
       if (!res.ok) {
         setRows([]);
@@ -123,8 +126,8 @@ export default function CosmosReports() {
 
   return (
     <FormProvider {...methods}>
-      {/* match calculator card vertical alignment with a tiny negative top margin */}
-      <Box className="mx-auto max-w-[1400px] p-4" style={{ overflow: "visible", marginTop: "-6px" }}>
+      {/* pull the card up to align with the left menu card */}
+      <Box className="mx-auto max-w-[1400px] p-4" style={{ overflow: "visible", marginTop: "-14px" }}>
         <Box className="bg-white rounded-lg shadow-lg p-4" style={{ position: "relative", zIndex: 1, overflow: "visible" }}>
           <HStack justify="space-between" align="center" mb={3}>
             <Text fontSize="lg" fontWeight="bold">DQ Reports</Text>
@@ -181,13 +184,12 @@ export default function CosmosReports() {
               />
             </GridItem>
 
-            {/* date input width matched to calculator (~260px) and aligned baseline */}
+            {/* fixed width to match calculator date field */}
             <GridItem minW="260px" maxW="260px" w="260px" style={{ display: "flex", alignItems: "center" }}>
               <InputFieldSet id="reportDate" fieldName="reportDate" label="" type="date" />
             </GridItem>
           </Grid>
 
-          {/* spacer only while select is interacting so dropdown never hides behind grid */}
           <Box style={{ height: menuSpace ? "280px" : 0, transition: "height 120ms" }} />
 
           {loading ? (
