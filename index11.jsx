@@ -93,9 +93,7 @@ export default function CosmosReports() {
         setRows([]);
         return;
       }
-      const url = `${REPORT_ENDPOINT}/${encodeURIComponent(nameVal)}?report_date=${encodeURIComponent(
-        dateStr
-      )}&limit=500`;
+      const url = `${REPORT_ENDPOINT}/${encodeURIComponent(nameVal)}?report_date=${encodeURIComponent(dateStr)}&limit=500`;
       const res = await fetch(url);
       if (!res.ok) {
         setRows([]);
@@ -125,7 +123,8 @@ export default function CosmosReports() {
 
   return (
     <FormProvider {...methods}>
-      <Box className="mx-auto max-w-[1400px] p-4" style={{ overflow: "visible" }}>
+      {/* match calculator card vertical alignment with a tiny negative top margin */}
+      <Box className="mx-auto max-w-[1400px] p-4" style={{ overflow: "visible", marginTop: "-6px" }}>
         <Box className="bg-white rounded-lg shadow-lg p-4" style={{ position: "relative", zIndex: 1, overflow: "visible" }}>
           <HStack justify="space-between" align="center" mb={3}>
             <Text fontSize="lg" fontWeight="bold">DQ Reports</Text>
@@ -149,7 +148,7 @@ export default function CosmosReports() {
 
           <Grid
             templateColumns="1fr 1fr"
-            gap="8px 24px"
+            gap="6px 24px"
             alignItems="end"
             style={{ overflow: "visible", width: "100%" }}
             onFocusCapture={() => setMenuSpace(true)}
@@ -162,7 +161,7 @@ export default function CosmosReports() {
               <Text fontSize="sm" fontWeight="bold" color="gray.700">Report Date</Text>
             </GridItem>
 
-            <GridItem minW="320px" maxW="320px" position="relative" zIndex={10000} display="flex" alignItems="center">
+            <GridItem minW="320px" maxW="320px" position="relative" zIndex={10000} style={{ display: "flex", alignItems: "center" }}>
               <DynamicSelect
                 id="reportName"
                 fieldName="reportName"
@@ -182,20 +181,13 @@ export default function CosmosReports() {
               />
             </GridItem>
 
-            {/* Same width as Reports; pull up slightly to remove the visual gap under the label */}
-            <GridItem minW="320px" maxW="320px" display="flex" alignItems="center">
-              <Box w="100%" mt="-6px">
-                <InputFieldSet
-                  id="reportDate"
-                  fieldName="reportDate"
-                  label=""
-                  type="date"
-                  mb={0}
-                />
-              </Box>
+            {/* date input width matched to calculator (~260px) and aligned baseline */}
+            <GridItem minW="260px" maxW="260px" w="260px" style={{ display: "flex", alignItems: "center" }}>
+              <InputFieldSet id="reportDate" fieldName="reportDate" label="" type="date" />
             </GridItem>
           </Grid>
 
+          {/* spacer only while select is interacting so dropdown never hides behind grid */}
           <Box style={{ height: menuSpace ? "280px" : 0, transition: "height 120ms" }} />
 
           {loading ? (
