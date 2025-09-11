@@ -1,9 +1,3 @@
--- Example in Snowflake
-CREATE SCHEMA IF NOT EXISTS rmdad_grc_dev_sjena;
-CREATE TABLE rmdad_grc_dev_sjena.riskfactor CLONE rmdad_grc_dev.ussparc_silver.riskfactor;
--- repeat for each table you need
-
--- If you can’t create a new schema, create test tables in an existing dev schema you can write to
 CREATE OR REPLACE TABLE ussparc_silver__sjena__riskfactor AS
 SELECT *
 FROM rmdad_grc_dev.ussparc_silver.riskfactor
@@ -12,3 +6,118 @@ LIMIT 1000;
 -- Repeat for other tables you need to touch…
 CREATE OR REPLACE TABLE ussparc_silver__sjena__varmodel AS
 SELECT * FROM rmdad_grc_dev.ussparc_silver.varmodel LIMIT 1000;
+####################################################################################################################################
+1) See what columns you actually have (so we only rename those)
+USE CATALOG rmdad_grc_dev;
+
+DESCRIBE TABLE ussparc_users.test_riskfactor;
+
+-- also handy:
+SELECT column_name
+FROM rmdad_grc_dev.information_schema.columns
+WHERE table_schema = 'ussparc_users'
+  AND table_name   = 'test_riskfactor'
+ORDER BY ordinal_position;
+-------------------------------------------------------------------------------------------------------------------------------------
+2) Generate the RIGHT ALTER … RENAME COLUMN statements (only for columns that exist)
+
+This builds the SQL you need. Then copy the output and run it.
+
+USE CATALOG rmdad_grc_dev;
+
+WITH mapping(old_name, new_name) AS (
+  VALUES
+    ('AL1_NAME',        'ALT_MF_NM'),          -- some envs use AL1_NAME
+    ('ALT_NAME',        'ALT_MF_NM'),          -- some envs use ALT_NAME
+    ('RF_CLASS',        'RF_CLASS_CD'),
+    ('CURRENCY',        'CURRENCY_CD'),
+    ('CURVE_TYPE',      'CURVE_INSTRUMENT_TYPE_CD'),
+    ('EFFECTIVE_CURRENCY','EFFECTIVE_CURRENCY_CD'),
+    ('FUTURE_TENOR',    'FUTURE_TENOR_CD'),
+    ('INDEX_TENOR',     'INDEX_TENOR_CD'),
+    ('INST_TYPE',       'INST_TYPE_CD'),
+    ('CLEARING_HOUSE',  'CLEARING_HOUSE_CD'),
+    ('MARGIN_TYPE',     'MARGIN_TYPE_CD'),
+    ('SHOCK_TYPE',      'SHOCK_TYPE_CD'),
+    ('VALID_FROM',      'VALID_FROM_TS'),
+    ('VALID_TO',        'VALID_TO_TS')
+),
+existing AS (
+  SELECT upper(column_name) AS column_name
+  FROM rmdad_grc_dev.information_schema.columns
+  WHERE table_schema = 'ussparc_users'
+    AND table_name   = 'test_riskfactor'
+)
+SELECT
+  CONCAT(
+    'ALTER TABLE rmdad_grc_dev.ussparc_users.test_riskfactor RENAME COLUMN ',
+    m.old_name, ' TO ', m.new_name, ';'
+  ) AS alter_stmt
+FROM mapping m
+JOIN existing e
+  ON e.column_name = m.old_name
+ORDER BY alter_stmt;
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+3) Verify schema + basic data sanity
+-- schema
+DESCRIBE TABLE ussparc_users.test_riskfactor;
+
+-- quick data checks on a few renamed columns (adjust to what you renamed)
+SELECT
+  COUNT(*)                                   AS row_cnt,
+  COUNT_IF(ALT_MF_NM IS NULL)                AS null_alt_mf_nm,
+  APPROX_COUNT_DISTINCT(ALT_MF_NM)           AS d_alt_mf_nm,
+  COUNT_IF(RF_CLASS_CD IS NULL)              AS null_rf_class_cd,
+  APPROX_COUNT_DISTINCT(RF_CLASS_CD)         AS d_rf_class_cd
+FROM ussparc_users.test_riskfactor;
+
+-- touch filters/sorts your code uses
+SELECT ALT_MF_NM, RF_CLASS_CD
+FROM ussparc_users.test_riskfactor
+WHERE RF_CLASS_CD IS NOT NULL
+ORDER BY ALT_MF_NM
+LIMIT 20;
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+4) Make it easy to point your app at this test data
+
+If your code expects the table path rmdad_grc_dev.ussparc_silver.riskfactor, create a temporary view alias that points to your test table:
+
+USE CATALOG rmdad_grc_dev;
+
+CREATE OR REPLACE VIEW ussparc_silver.riskfactor_sjena AS
+SELECT * FROM ussparc_users.test_riskfactor;
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+5) Optional: quick rollback generator
+
+If you need to undo, generate reverse renames for whatever you changed:
+
+WITH mapping(new_name, old_name) AS (
+  VALUES
+    ('ALT_MF_NM','ALT_NAME'),        -- or 'AL1_NAME' if that was original
+    ('RF_CLASS_CD','RF_CLASS'),
+    ('CURRENCY_CD','CURRENCY'),
+    ('CURVE_INSTRUMENT_TYPE_CD','CURVE_TYPE'),
+    ('EFFECTIVE_CURRENCY_CD','EFFECTIVE_CURRENCY'),
+    ('FUTURE_TENOR_CD','FUTURE_TENOR'),
+    ('INDEX_TENOR_CD','INDEX_TENOR'),
+    ('INST_TYPE_CD','INST_TYPE'),
+    ('CLEARING_HOUSE_CD','CLEARING_HOUSE'),
+    ('MARGIN_TYPE_CD','MARGIN_TYPE'),
+    ('SHOCK_TYPE_CD','SHOCK_TYPE'),
+    ('VALID_FROM_TS','VALID_FROM'),
+    ('VALID_TO_TS','VALID_TO')
+),
+existing AS (
+  SELECT upper(column_name) AS column_name
+  FROM rmdad_grc_dev.information_schema.columns
+  WHERE table_schema = 'ussparc_users'
+    AND table_name   = 'test_riskfactor'
+)
+SELECT CONCAT(
+  'ALTER TABLE rmdad_grc_dev.ussparc_users.test_riskfactor RENAME COLUMN ',
+  m.new_name, ' TO ', m.old_name, ';'
+) AS rollback_stmt
+FROM mapping m
+JOIN existing e ON e.column_name = m.new_name
+ORDER BY rollback_stmt;
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
