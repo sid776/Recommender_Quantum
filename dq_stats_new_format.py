@@ -1,59 +1,70 @@
-from __future__ import annotations
 from datetime import date
 from typing import Any, Dict, List, Optional
 from ninja import Router
+from core.db import DBConnection
 from services.api.authentication import AzureADAuthentication
-from services.dq_services import (
-    DQSummaryService,
-    DQStalenessService,
-    DQOutliersService,
-    DQAvailabilityService,
-    DQReasonabilityService,
-    DQSchemaService,
-)
-
-try:
-    from core.utils import Timer
-except Exception:
-    from contextlib import contextmanager
-    @contextmanager
-    def Timer(_msg: str):
-        yield
 
 router = Router(tags=["DQ Reports"], auth=AzureADAuthentication())
 
-@router.get("/dq/summary", response=List[Dict[str, Any]])
-def dq_summary(request, report_date: Optional[date] = None, limit: int = 500):
-    with Timer("Triggered dq/summary api"):
-        records = DQSummaryService.get(report_date=report_date, limit=limit)
-    return records
+def get_summary_data(report_date: Optional[date], limit: int):
+    with DBConnection() as db:
+        if report_date:
+            q = f"""
+                SELECT * FROM niwa_dev_gold.vw_smbc_marx_validation_summary_report
+                WHERE to_date(CAST(report_date AS STRING), 'yyyy-MM-dd') = to_date('{report_date}')
+                LIMIT {limit}
+            """
+        else:
+            q = f"""
+                SELECT * FROM niwa_dev_gold.vw_smbc_marx_validation_summary_report
+                ORDER BY to_timestamp(CAST(report_date AS STRING)) DESC
+                LIMIT {limit}
+            """
+        return db.execute(q, df=True).to_dict(orient="records")
 
-@router.get("/dq/staleness", response=List[Dict[str, Any]])
-def dq_staleness(request, report_date: Optional[date] = None, limit: int = 500):
-    with Timer("Triggered dq/staleness api"):
-        records = DQStalenessService.get(report_date=report_date, limit=limit)
-    return records
+def get_staleness_data(report_date: Optional[date], limit: int):
+    with DBConnection() as db:
+        if report_date:
+            q = f"""
+                SELECT * FROM niwa_dev_gold.vw_smbc_marx_validation_staleness_report
+                WHERE to_date(CAST(report_date AS STRING), 'yyyy-MM-dd') = to_date('{report_date}')
+                LIMIT {limit}
+            """
+        else:
+            q = f"""
+                SELECT * FROM niwa_dev_gold.vw_smbc_marx_validation_staleness_report
+                ORDER BY to_timestamp(CAST(report_date AS STRING)) DESC
+                LIMIT {limit}
+            """
+        return db.execute(q, df=True).to_dict(orient="records")
 
-@router.get("/dq/outliers", response=List[Dict[str, Any]])
-def dq_outliers(request, report_date: Optional[date] = None, limit: int = 500):
-    with Timer("Triggered dq/outliers api"):
-        records = DQOutliersService.get(report_date=report_date, limit=limit)
-    return records
+def get_outliers_data(report_date: Optional[date], limit: int):
+    with DBConnection() as db:
+        if report_date:
+            q = f"""
+                SELECT * FROM niwa_dev_gold.vw_smbc_marx_validation_outlier_report
+                WHERE to_date(CAST(as_of_date AS STRING), 'yyyy-MM-dd') = to_date('{report_date}')
+                LIMIT {limit}
+            """
+        else:
+            q = f"""
+                SELECT * FROM niwa_dev_gold.vw_smbc_marx_validation_outlier_report
+                ORDER BY to_timestamp(CAST(as_of_date AS STRING)) DESC
+                LIMIT {limit}
+            """
+        return db.execute(q, df=True).to_dict(orient="records")
 
-@router.get("/dq/availability", response=List[Dict[str, Any]])
-def dq_availability(request, report_date: Optional[date] = None, limit: int = 500):
-    with Timer("Triggered dq/availability api"):
-        records = DQAvailabilityService.get(report_date=report_date, limit=limit)
-    return records
-
-@router.get("/dq/reasonability", response=List[Dict[str, Any]])
-def dq_reasonability(request, report_date: Optional[date] = None, limit: int = 500):
-    with Timer("Triggered dq/reasonability api"):
-        records = DQReasonabilityService.get(report_date=report_date, limit=limit)
-    return records
-
-@router.get("/dq/schema", response=List[Dict[str, Any]])
-def dq_schema(request, report_date: Optional[date] = None, limit: int = 500):
-    with Timer("Triggered dq/schema api"):
-        records = DQSchemaService.get(report_date=report_date, limit=limit)
-    return records
+def get_availability_data(report_date: Optional[date], limit: int):
+    with DBConnection() as db:
+        if report_date:
+            q = f"""
+                SELECT * FROM niwa_dev_gold.vw_smbc_marx_validation_availability_report
+                WHERE to_date(CAST(report_date AS STRING), 'yyyy-MM-dd') = to_date('{report_date}')
+                LIMIT {limit}
+            """
+        else:
+            q = f"""
+                SELECT * FROM niwa_dev_gold.vw_smbc_marx_validation_availability_report
+                ORDER BY to_timestamp(CAST(report_date AS STRING)) DESC
+                LIMIT {limit}
+            ""
