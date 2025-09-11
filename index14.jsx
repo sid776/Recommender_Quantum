@@ -72,6 +72,7 @@ export default function CosmosReports() {
 
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [menuSpace, setMenuSpace] = useState(false);
 
   const reportObj = watch("reportName");
 
@@ -124,41 +125,34 @@ export default function CosmosReports() {
 
   return (
     <FormProvider {...methods}>
-      <Box
-        className="mx-auto max-w-[1400px] px-4 pt-2 pb-4"
-        style={{
-          overflow: "visible",
-          position: "relative",
-          zIndex: 0
-        }}
-      >
+      <Box className="mx-auto max-w-[1400px] p-4" style={{ overflow: "visible" }}>
         <Box
           className="bg-white rounded-lg shadow-lg p-4"
           style={{
-            overflow: "visible",
             position: "relative",
-            zIndex: 0,
-            marginTop: "-6px"
+            zIndex: 0,                 // ensures sidebar stays above; no “hiding under Support”
+            overflow: "visible",
+            marginTop: 0
           }}
         >
-          <HStack justify="space-between" align="center" mb={3}>
-            <Text fontSize="lg" fontWeight="bold">DQ Reports</Text>
-          </HStack>
+          <Text fontSize="lg" fontWeight="bold" mb={3}>DQ Reports</Text>
 
           <Grid
             templateColumns="1fr 1fr"
             gap="8px 24px"
             alignItems="end"
             style={{ overflow: "visible", width: "100%" }}
+            onFocusCapture={() => setMenuSpace(true)}
+            onBlurCapture={() => setMenuSpace(false)}
           >
             <GridItem>
-              <Text fontSize="sm" fontWeight="bold" color="gray.700">Reports</Text>
+              <Text fontSize="sm" color="gray.700" fontWeight="semibold">Reports</Text>
             </GridItem>
             <GridItem>
-              <Text fontSize="sm" fontWeight="bold" color="gray.700">Report Date</Text>
+              <Text fontSize="sm" color="gray.700" fontWeight="semibold">Report Date</Text>
             </GridItem>
 
-            <GridItem minW="320px" position="relative" zIndex={1} style={{ display: "flex", alignItems: "center" }}>
+            <GridItem minW="320px" position="relative" zIndex={10} style={{ display: "flex", alignItems: "center" }}>
               <DynamicSelect
                 id="reportName"
                 fieldName="reportName"
@@ -178,49 +172,45 @@ export default function CosmosReports() {
               />
             </GridItem>
 
-            <GridItem
-              minW="320px"
-              sx={{ ".chakra-form__helper-text": { display: "none" } }}
-              style={{ display: "flex", alignItems: "center" }}
-            >
+            <GridItem minW="320px" style={{ display: "flex", alignItems: "center" }}>
               <InputFieldSet id="reportDate" fieldName="reportDate" label="" type="date" />
+            </GridItem>
+
+            <GridItem colSpan={2}>
+              <HStack justify="flex-end" spacing={3} mt={2}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  borderColor="#0f5c2e"
+                  color="#0f5c2e"
+                  onClick={() => {
+                    setRows([]);
+                    setValue("reportName", null);
+                    setValue("reportDate", "");
+                  }}
+                >
+                  Reset
+                </Button>
+                <Button
+                  size="sm"
+                  bg="#0f5c2e"
+                  color="white"
+                  _hover={{ bg: "#0d4f27" }}
+                  onClick={loadData}
+                  isLoading={loading}
+                >
+                  Run
+                </Button>
+              </HStack>
             </GridItem>
           </Grid>
 
-          <HStack justify="flex-end" mt={4} spacing={3}>
-            <Button
-              size="sm"
-              variant="solid"
-              bg="white"
-              border="1px solid"
-              borderColor="gray.300"
-              color="gray.800"
-              _hover={{ bg: "gray.50" }}
-              onClick={() => {
-                setRows([]);
-                setValue("reportName", null);
-                setValue("reportDate", "");
-              }}
-            >
-              Reset
-            </Button>
-            <Button
-              size="sm"
-              variant="solid"
-              bg="#1E5D3B"
-              color="white"
-              _hover={{ bg: "#184C31" }}
-              onClick={loadData}
-              isLoading={loading}
-            >
-              Run
-            </Button>
-          </HStack>
+          <Box style={{ height: menuSpace ? "0px" : 0, transition: "height 120ms" }} />
 
           {loading ? (
-            <Box mt={3}><Skeleton height="520px" rounded="md" /></Box>
+            <Box mt={2}><Skeleton height="520px" rounded="md" /></Box>
           ) : hasData ? (
-            <Box mt={3} style={{ height: "calc(100vh - 360px)" }}>
+            <Box mt={2} style={{ height: "calc(100vh - 320px)" }}>
               <AgGridTable
                 rowData={rows}
                 columnDefs={columnDefs}
