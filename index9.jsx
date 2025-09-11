@@ -1,9 +1,9 @@
 // frontend/src/components/pages/CosmosReports/index.jsx
 import React, { useEffect, useMemo, useState } from "react";
-import { Box, HStack, Button, Skeleton, Text } from "@chakra-ui/react";
+import { Box, Wrap, WrapItem, Button, Skeleton, HStack, Text } from "@chakra-ui/react";
 import { useForm, FormProvider } from "react-hook-form";
 import DynamicSelect from "../../elements/DynamicSelect.jsx";
-import InputFieldSet from "../../elements/InputFieldSet.jsx";
+import InputFieldSet from "../../elements/InputFieldset.jsx";
 import AgGridTable from "../../elements/AgGridTable.jsx";
 
 const prettify = (k) => k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -75,7 +75,6 @@ export default function CosmosReports() {
   const [menuSpace, setMenuSpace] = useState(false);
 
   const reportObj = watch("reportName");
-
   useEffect(() => {
     if (!reportObj) {
       setRows([]);
@@ -93,9 +92,7 @@ export default function CosmosReports() {
         setRows([]);
         return;
       }
-      const url = `${REPORT_ENDPOINT}/${encodeURIComponent(nameVal)}?report_date=${encodeURIComponent(
-        dateStr
-      )}&limit=500`;
+      const url = `${REPORT_ENDPOINT}/${encodeURIComponent(nameVal)}?report_date=${encodeURIComponent(dateStr)}&limit=500`;
       const res = await fetch(url);
       if (!res.ok) {
         setRows([]);
@@ -118,7 +115,8 @@ export default function CosmosReports() {
   }
 
   const reportLabel =
-    (typeof reportObj === "object" ? reportObj?.label : REPORTS.find((r) => r.value === reportObj)?.label) || "";
+    (typeof reportObj === "object" ? reportObj?.label : REPORTS.find((r) => r.value === reportObj)?.label) ||
+    "";
 
   const columnDefs = useMemo(() => buildColumnDefs(rows, reportLabel), [rows, reportLabel]);
   const hasData = rows && rows.length > 0;
@@ -147,14 +145,8 @@ export default function CosmosReports() {
             </HStack>
           </HStack>
 
-          <HStack
-            align="center"
-            spacing="24px"
-            style={{ overflow: "visible", width: "100%" }}
-            onFocusCapture={() => setMenuSpace(true)}
-            onBlurCapture={() => setMenuSpace(false)}
-          >
-            <Box flex="1" minW="320px" position="relative" zIndex={10000}>
+          <Wrap align="center" spacing="24px" style={{ overflow: "visible" }}>
+            <WrapItem style={{ minWidth: 320, position: "relative", zIndex: 10000, overflow: "visible" }}>
               <DynamicSelect
                 id="reportName"
                 fieldName="reportName"
@@ -172,19 +164,23 @@ export default function CosmosReports() {
                 }}
                 defaultValue={null}
               />
-            </Box>
+            </WrapItem>
 
-            <Box flex="1" minW="260px">
+            <WrapItem style={{ minWidth: 260 }}>
               <InputFieldSet
                 id="reportDate"
                 fieldName="reportDate"
                 label="Report Date (optional)"
                 type="date"
               />
-            </Box>
-          </HStack>
+            </WrapItem>
+          </Wrap>
 
-          <Box style={{ height: menuSpace ? "280px" : 0, transition: "height 120ms" }} />
+          <Box
+            onFocusCapture={() => setMenuSpace(true)}
+            onBlurCapture={() => setMenuSpace(false)}
+            style={{ height: menuSpace ? "280px" : 0, transition: "height 120ms" }}
+          />
 
           {loading ? (
             <Box mt={2}><Skeleton height="520px" rounded="md" /></Box>
