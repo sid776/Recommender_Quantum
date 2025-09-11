@@ -1,6 +1,6 @@
 // frontend/src/components/pages/CosmosReports/index.jsx
 import React, { useEffect, useMemo, useState } from "react";
-import { Box, HStack, Button, Skeleton, Text } from "@chakra-ui/react";
+import { Box, HStack, Button, Skeleton, Text, Grid, GridItem } from "@chakra-ui/react";
 import { useForm, FormProvider } from "react-hook-form";
 import DynamicSelect from "../../elements/DynamicSelect.jsx";
 import InputFieldSet from "../../elements/InputFieldSet.jsx";
@@ -147,18 +147,26 @@ export default function CosmosReports() {
             </HStack>
           </HStack>
 
-          <HStack
-            align="start"
-            spacing="24px"
+          <Grid
+            templateColumns="1fr 1fr"
+            gap="16px 24px"
+            alignItems="center"
             style={{ overflow: "visible", width: "100%" }}
             onFocusCapture={() => setMenuSpace(true)}
             onBlurCapture={() => setMenuSpace(false)}
           >
-            <Box flex="1" minW="360px" position="relative" zIndex={10000}>
+            <GridItem>
+              <Text fontSize="sm" color="gray.600">Reports</Text>
+            </GridItem>
+            <GridItem>
+              <Text fontSize="sm" color="gray.600">Report Date (optional)</Text>
+            </GridItem>
+
+            <GridItem minW="320px" position="relative" zIndex={10000}>
               <DynamicSelect
                 id="reportName"
                 fieldName="reportName"
-                label="Reports"
+                label=""
                 placeholder="Select report"
                 dataLoader={async () => REPORTS}
                 onSelectionChange={(opt) => {
@@ -172,17 +180,17 @@ export default function CosmosReports() {
                 }}
                 defaultValue={null}
               />
-            </Box>
+            </GridItem>
 
-            <Box flex="1" minW="320px">
+            <GridItem minW="260px">
               <InputFieldSet
                 id="reportDate"
                 fieldName="reportDate"
-                label="Report Date (optional)"
+                label=""
                 type="date"
               />
-            </Box>
-          </HStack>
+            </GridItem>
+          </Grid>
 
           <Box style={{ height: menuSpace ? "280px" : 0, transition: "height 120ms" }} />
 
