@@ -124,8 +124,14 @@ export default function CosmosReports() {
 
   return (
     <FormProvider {...methods}>
-      <Box className="mx-auto max-w-[1400px] p-4" style={{ overflow: "visible" }}>
-        <Box className="bg-white rounded-lg shadow-lg p-4" style={{ overflow: "visible" }}>
+      <Box
+        className="mx-auto max-w-[1400px] px-4 pt-2 pb-4"
+        style={{ overflow: "visible", zIndex: 0 }}
+      >
+        <Box
+          className="bg-white rounded-lg shadow-lg p-4"
+          style={{ overflow: "visible", zIndex: 0, marginTop: "-6px" }}
+        >
           <HStack justify="space-between" align="center" mb={3}>
             <Text fontSize="lg" fontWeight="bold">DQ Reports</Text>
           </HStack>
@@ -163,7 +169,13 @@ export default function CosmosReports() {
               />
             </GridItem>
 
-            <GridItem minW="320px" style={{ display: "flex", alignItems: "center" }}>
+            <GridItem
+              minW="320px"
+              sx={{
+                ".chakra-form__helper-text": { display: "none" }
+              }}
+              style={{ display: "flex", alignItems: "center" }}
+            >
               <InputFieldSet
                 id="reportDate"
                 fieldName="reportDate"
