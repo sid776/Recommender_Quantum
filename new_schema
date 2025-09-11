@@ -2,3 +2,13 @@
 CREATE SCHEMA IF NOT EXISTS rmdad_grc_dev_sjena;
 CREATE TABLE rmdad_grc_dev_sjena.riskfactor CLONE rmdad_grc_dev.ussparc_silver.riskfactor;
 -- repeat for each table you need
+
+-- If you can’t create a new schema, create test tables in an existing dev schema you can write to
+CREATE OR REPLACE TABLE ussparc_silver__sjena__riskfactor AS
+SELECT *
+FROM rmdad_grc_dev.ussparc_silver.riskfactor
+LIMIT 1000;
+
+-- Repeat for other tables you need to touch…
+CREATE OR REPLACE TABLE ussparc_silver__sjena__varmodel AS
+SELECT * FROM rmdad_grc_dev.ussparc_silver.varmodel LIMIT 1000;
