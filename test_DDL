@@ -1,0 +1,134 @@
+header: Rename columns in riskfactor table
+query: 
+    alter table {catalog}.ussparc_silver.riskfactor rename column ALT_NAME to ALT_RF_NM;
+    alter table {catalog}.ussparc_silver.riskfactor rename column RF_CLASS to RF_CLASS_CD;
+    alter table {catalog}.ussparc_silver.riskfactor rename column CURRENCY to CURRENCY_CD;
+    alter table {catalog}.ussparc_silver.riskfactor rename column CURVE_TYPE to CURVE_INSTRUMENT_TYPE_NM;
+    alter table {catalog}.ussparc_silver.riskfactor rename column EFFECTIVE_CURRENCY to EFFECTIVE_CURRENCY_CD;
+    alter table {catalog}.ussparc_silver.riskfactor rename column FUTURE_TENOR to FUTURE_TENOR_CD;
+    alter table {catalog}.ussparc_silver.riskfactor rename column INDEX_TENOR to INDEX_TENOR_CD;
+    alter table {catalog}.ussparc_silver.riskfactor rename column INST_TYPE to INST_TYPE_CD;
+    alter table {catalog}.ussparc_silver.riskfactor rename column CLEARING_HOUSE to CLEARING_HOUSE_CD;
+    alter table {catalog}.ussparc_silver.riskfactor rename column MARGIN_TYPE to MARGIN_TYPE_NM;
+    alter table {catalog}.ussparc_silver.riskfactor rename column SHOCK_TYPE to SHOCK_TYPE_CD;
+    alter table {catalog}.ussparc_silver.riskfactor rename column VALID_FROM to VALID_FROM_TS;
+    alter table {catalog}.ussparc_silver.riskfactor rename column VALID_TO to VALID_TO_TS;
+
+    
+header: Rename columns in futuresexpirymapping table
+query:
+    alter table {catalog}.ussparc_silver.futuresexpirymapping rename column EXPIRY_MONTH to EXPIRY_MONTH_CD;
+    alter table {catalog}.ussparc_silver.futuresexpirymapping rename column VALID_FROM to VALID_FROM_TS;
+    alter table {catalog}.ussparc_silver.futuresexpirymapping rename column VALID_TO to VALID_TO_TS;
+
+
+header: Rename columns in varmodel table
+query:
+    #alter table {catalog}.ussparc_silver.varmodel rename column MODEL_ID to ID;
+    alter table {catalog}.ussparc_silver.varmodel rename column CONFIDENCE_LVL to CONFIDENCE_LEVEL_QT;  
+    alter table {catalog}.ussparc_silver.varmodel rename column PNL_IDENTIFIER to PNL_ID;
+    alter table {catalog}.ussparc_silver.varmodel rename column VAR_TYPE to VAR_TYPE_CD;
+    alter table {catalog}.ussparc_silver.varmodel rename column HOLDING_PERIOD to HOLDING_PERIOD_CD;
+    alter table {catalog}.ussparc_silver.varmodel rename column TIME_HORIZON to TIME_HORIZON_CD;
+    alter table {catalog}.ussparc_silver.varmodel rename column IS_OFFICIAL to IS_OFFICIAL_CD;
+    alter table {catalog}.ussparc_silver.varmodel rename column PNL_IDENTIFIER to PNL_ID;
+    alter table {catalog}.ussparc_silver.varmodel rename column CREATED_BY to CREATED_BY_NM;
+    alter table {catalog}.ussparc_silver.varmodel rename column VALID_FROM to VALID_FROM_TS;
+    alter table {catalog}.ussparc_silver.varmodel rename column VALID_TO to VALID_TO_TS;
+
+header: Rename columns in varmodel_riskfactor table
+query:
+    alter table {catalog}.ussparc_silver.varmodel_riskfactor rename column CREATED_BY to CREATED_BY_NM;
+    alter table {catalog}.ussparc_silver.varmodel_riskfactor rename column VALID_FROM to VALID_FROM_TS;
+    alter table {catalog}.ussparc_silver.varmodel_riskfactor rename column VALID_TO to VALID_TO_TS;
+
+
+header: Rename columns in varmodel_product table
+query:
+    alter table {catalog}.ussparc_silver.varmodel_product rename column CREATED_BY to CREATED_BY_NM;
+    alter table {catalog}.ussparc_silver.varmodel_product rename column VALID_FROM to VALID_FROM_TS;
+    alter table {catalog}.ussparc_silver.varmodel_product rename column VALID_TO to VALID_TO_TS;
+
+header: Rename columns in request table
+query:
+    alter table {catalog}.ussparc_silver.request rename column REQUEST_TYPE to REQUEST_TYPE_CD;
+    alter table {catalog}.ussparc_silver.request rename column REQUEST_JSON to REQUEST_JSON_CD;
+    alter table {catalog}.ussparc_silver.request rename column CREATED_BY to CREATED_BY_NM;
+    alter table {catalog}.ussparc_silver.request rename column CREATED_AT to CREATED_AT_TS;
+
+header: Rename columns in requestrun table
+query:
+    alter table {catalog}.ussparc_silver.requestrun rename column STATUS to STATUS_CD;
+    alter table {catalog}.ussparc_silver.requestrun rename column TOTAL_UNITS to TOTAL_UNITS_QT;
+    alter table {catalog}.ussparc_silver.requestrun rename column UNITS_TO_PROCESS to UNITS_TO_PROCESS_QT;
+    alter table {catalog}.ussparc_silver.requestrun rename column STARTED_AT to STARTED_AT_TS;
+    alter table {catalog}.ussparc_silver.requestrun rename column UPDATED_AT to UPDATED_AT_TS;
+
+header: Rename columns in requestrun table
+query:
+    alter table {catalog}.ussparc_silver.requestrun rename column STATUS to STATUS_CD;
+    alter table {catalog}.ussparc_silver.requestrun rename column TOTAL_UNITS to TOTAL_UNITS_QT;
+    alter table {catalog}.ussparc_silver.requestrun rename column UNITS_TO_PROCESS to UNITS_TO_PROCESS_QT;
+    alter table {catalog}.ussparc_silver.requestrun rename column STARTED_AT to STARTED_AT_TS;
+    alter table {catalog}.ussparc_silver.requestrun rename column UPDATED_AT to UPDATED_AT_TS;
+
+header: Rename columns in requestlog table
+query:
+    alter table {catalog}.ussparc_silver.requestlog rename column TX to MESSAGE_TX;
+    alter table {catalog}.ussparc_silver.requestlog rename column POSTED_AT to POSTED_AT_TS;
+
+header: Rename columns in ref_product table
+query:
+    alter table {catalog}.ussparc_silver.ref_product rename column CREATED_BY to CREATED_BY_NM;
+    alter table {catalog}.ussparc_silver.ref_product rename column VALID_FROM to VALID_FROM_TS;
+    alter table {catalog}.ussparc_silver.ref_product rename column VALID_TO to VALID_TO_TS;
+
+header: Rename columns in ref_entity table
+query:
+    alter table {catalog}.ussparc_silver.ref_entity rename column CREATED_BY to CREATED_BY_NM;
+    alter table {catalog}.ussparc_silver.ref_entity  rename column VALID_FROM to VALID_FROM_TS;
+    alter table {catalog}.ussparc_silver.ref_entity  rename column VALID_TO to VALID_TO_TS;
+
+header: Rename columns in valuation table
+query:
+    alter table {catalog}.ussparc_silver.valuation  rename column SNAPSHOT to SNAPSHOT_CD;    
+
+header: Rename columns in varmodel_entity table
+query:
+    alter table {catalog}.ussparc_silver.varmodel_entity  rename column VALID_FROM to VALID_FROM_TS;
+    alter table {catalog}.ussparc_silver.varmodel_entity  rename column VALID_TO to VALID_TO_TS; 
+
+header: Rename columns in sensitivitypnlstrips table
+query:
+    alter table {catalog}.ussparc_gold.sensitivitypnlstrips rename column PNL_IDENTIFIER to PNL_ID;
+    alter table {catalog}.ussparc_gold.sensitivitypnlstrips rename column SNAPSHOT to SNAPSHOT_CD;   
+    alter table {catalog}.ussparc_gold.sensitivitypnlstrips  rename column VALID_FROM to VALID_FROM_TS;
+    alter table {catalog}.ussparc_gold.sensitivitypnlstrips  rename column VALID_TO to VALID_TO_TS;
+
+header: Rename columns in var1 table
+query:
+    alter table {catalog}.ussparc_gold.var1  rename column SNAPSHOT to SNAPSHOT_CD;
+    alter table {catalog}.ussparc_gold.var1  rename column VALID_FROM to VALID_FROM_TS;
+    alter table {catalog}.ussparc_gold.var1  rename column VALID_TO to VALID_TO_TS; 
+
+header: Rename columns in vw_var_rf_mapping table
+query:
+    alter table {catalog}.ussparc_gold.vw_var_rf_mapping  rename column CONFIDENCE_LVL to CONFIDENCE_LEVEL_QT;
+    alter table {catalog}.ussparc_gold.vw_var_rf_mapping  rename column CREATED_BY to CREATED_BY_NM;
+    alter table {catalog}.ussparc_gold.vw_var_rf_mapping  rename column HOLDING_PERIOD to HOLDING_PERIOD_CD;
+    alter table {catalog}.ussparc_gold.vw_var_rf_mapping  rename column IS_OFFICIAL to IS_OFFICIAL_CD;   
+    alter table {catalog}.ussparc_gold.vw_var_rf_mapping  rename column TIME_HORIZON to TIME_HORIZON_CD;
+    alter table {catalog}.ussparc_gold.vw_var_rf_mapping  rename column ALT_NAME to ALT_NM;
+    alter table {catalog}.ussparc_gold.vw_var_rf_mapping  rename column CURRENCY to CURRENCY_CD;
+    alter table {catalog}.ussparc_gold.vw_var_rf_mapping  rename column CURVE_TYPE to CURVE_TYPE_CD;
+    alter table {catalog}.ussparc_gold.vw_var_rf_mapping  rename column EFFECTIVE_CURRENCY to EFFECTIVE_CURRENCY_CD;
+    alter table {catalog}.ussparc_gold.vw_var_rf_mapping  rename column FUTURE_TENOR to FUTURE_TENOR_CD;
+    alter table {catalog}.ussparc_gold.vw_var_rf_mapping  rename column INDEX_TENOR to INDEX_TENOR_CD;
+    alter table {catalog}.ussparc_gold.vw_var_rf_mapping  rename column INST_TYPE to INST_TYPE_CD;
+
+header: Rename columns in trade table
+query:
+    alter table {catalog}.ussparc_gold.trade  rename column SNAPSHOT to SNAPSHOT_CD;  
+
+                                              
+    
