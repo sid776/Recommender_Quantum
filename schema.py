@@ -43,7 +43,7 @@ class DQSchema:
 
         with DBConnection() as db:
             if report_date:
-                rd = report_date.isoformat()
+                rd = report_date.isoformat()  # 'YYYY-MM-DD'
                 q = f"""
                     SELECT *
                     FROM {table}
@@ -58,6 +58,15 @@ class DQSchema:
                     ORDER BY {unified_date} DESC
                     LIMIT {int(limit)}
                 """
+
+            df = db.execute(q, df=True)
+
+        # Defensive guard
+        if df is None or df.empty:
+            return []
+
+        return df.to_dict(orient="records")
+
 
 
 #################################################################################################################################################################################
