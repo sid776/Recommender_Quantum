@@ -4,6 +4,29 @@ def dq_schema(request, report_date: Optional[date] = None, limit: int = 500):
     with Timer("Triggered dq/schema api"):
         records = DQSchema.get(report_date=report_date, limit=limit)
         return jsonable_encoder(records)
+
+@router.get("/dq/schema", response=List[Dict[str, Any]])
+def dq_schema(request, report_date: Optional[date] = None, limit: int = 500):
+    with Timer("Triggered dq/schema api"):
+        records = DQSchema.get(report_date=report_date, limit=limit)
+
+        # Ensure it's plain JSON-safe (no NaN, no numpy.int64)
+        safe_records = []
+        for r in records:
+            safe = {}
+            for k, v in r.items():
+                if isinstance(v, (np.int64, np.int32)):
+                    safe[k] = int(v)
+                elif isinstance(v, (np.float64, np.float32)):
+                    safe[k] = float(v)
+                elif pd.isna(v):
+                    safe[k] = None
+                else:
+                    safe[k] = v
+            safe_records.append(safe)
+
+        return safe_records
+
 #################################################################################################################################################################################
 #dq_reports:
 from typing import List, Dict, Any, Optional
