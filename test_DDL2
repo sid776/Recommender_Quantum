@@ -1,0 +1,139 @@
+-- Use the correct catalog
+USE CATALOG rmdad_grc_dev;
+
+-- ===============================
+-- Rename columns in riskfactor
+-- ===============================
+ALTER TABLE ussparc_users.riskfactor RENAME COLUMN ALT_NAME         TO ALT_RF_NM;
+ALTER TABLE ussparc_users.riskfactor RENAME COLUMN RF_CLASS         TO RF_CLASS_CD;
+ALTER TABLE ussparc_users.riskfactor RENAME COLUMN CURRENCY         TO CURRENCY_CD;
+ALTER TABLE ussparc_users.riskfactor RENAME COLUMN CURVE_TYPE       TO CURVE_INSTRUMENT_TYPE_NM;
+ALTER TABLE ussparc_users.riskfactor RENAME COLUMN EFFECTIVE_CURRENCY TO EFFECTIVE_CURRENCY_CD;
+ALTER TABLE ussparc_users.riskfactor RENAME COLUMN FUTURE_TENOR     TO FUTURE_TENOR_CD;
+ALTER TABLE ussparc_users.riskfactor RENAME COLUMN INDEX_TENOR      TO INDEX_TENOR_CD;
+ALTER TABLE ussparc_users.riskfactor RENAME COLUMN INST_TYPE        TO INST_TYPE_CD;
+ALTER TABLE ussparc_users.riskfactor RENAME COLUMN CLEARING_HOUSE   TO CLEARING_HOUSE_CD;
+ALTER TABLE ussparc_users.riskfactor RENAME COLUMN MARGIN_TYPE      TO MARGIN_TYPE_NM;
+ALTER TABLE ussparc_users.riskfactor RENAME COLUMN SHOCK_TYPE       TO SHOCK_TYPE_CD;
+ALTER TABLE ussparc_users.riskfactor RENAME COLUMN VALID_FROM       TO VALID_FROM_TS;
+ALTER TABLE ussparc_users.riskfactor RENAME COLUMN VALID_TO         TO VALID_TO_TS;
+
+-- ===================================
+-- Rename columns in futuresexpirymapping
+-- ===================================
+ALTER TABLE ussparc_users.futuresexpirymapping RENAME COLUMN EXPIRY_MONTH TO EXPIRY_MONTH_CD;
+ALTER TABLE ussparc_users.futuresexpirymapping RENAME COLUMN VALID_FROM   TO VALID_FROM_TS;
+ALTER TABLE ussparc_users.futuresexpirymapping RENAME COLUMN VALID_TO     TO VALID_TO_TS;
+
+-- ==========================
+-- Rename columns in varmodel
+-- ==========================
+-- (MODEL_ID -> ID was commented out in your YAML)
+ALTER TABLE ussparc_users.varmodel RENAME COLUMN CONFIDENCE_LVL  TO CONFIDENCE_LEVEL_QT;
+ALTER TABLE ussparc_users.varmodel RENAME COLUMN PNL_IDENTIFIER  TO PNL_ID;
+ALTER TABLE ussparc_users.varmodel RENAME COLUMN VAR_TYPE        TO VAR_TYPE_CD;
+ALTER TABLE ussparc_users.varmodel RENAME COLUMN HOLDING_PERIOD  TO HOLDING_PERIOD_CD;
+ALTER TABLE ussparc_users.varmodel RENAME COLUMN TIME_HORIZON    TO TIME_HORIZON_CD;
+ALTER TABLE ussparc_users.varmodel RENAME COLUMN IS_OFFICIAL     TO IS_OFFICIAL_CD;
+-- PNL_IDENTIFIER -> PNL_ID appears twice in YAML; once is enough
+ALTER TABLE ussparc_users.varmodel RENAME COLUMN CREATED_BY      TO CREATED_BY_NM;
+ALTER TABLE ussparc_users.varmodel RENAME COLUMN VALID_FROM      TO VALID_FROM_TS;
+ALTER TABLE ussparc_users.varmodel RENAME COLUMN VALID_TO        TO VALID_TO_TS;
+
+-- ====================================
+-- Rename columns in varmodel_riskfactor
+-- ====================================
+ALTER TABLE ussparc_users.varmodel_riskfactor RENAME COLUMN CREATED_BY TO CREATED_BY_NM;
+ALTER TABLE ussparc_users.varmodel_riskfactor RENAME COLUMN VALID_FROM TO VALID_FROM_TS;
+ALTER TABLE ussparc_users.varmodel_riskfactor RENAME COLUMN VALID_TO   TO VALID_TO_TS;
+
+-- =================================
+-- Rename columns in varmodel_product
+-- =================================
+ALTER TABLE ussparc_users.varmodel_product RENAME COLUMN CREATED_BY TO CREATED_BY_NM;
+ALTER TABLE ussparc_users.varmodel_product RENAME COLUMN VALID_FROM TO VALID_FROM_TS;
+ALTER TABLE ussparc_users.varmodel_product RENAME COLUMN VALID_TO   TO VALID_TO_TS;
+
+-- =========================
+-- Rename columns in request
+-- =========================
+ALTER TABLE ussparc_users.request RENAME COLUMN REQUEST_TYPE TO REQUEST_TYPE_CD;
+ALTER TABLE ussparc_users.request RENAME COLUMN REQUEST_JSON TO REQUEST_JSON_CD;
+ALTER TABLE ussparc_users.request RENAME COLUMN CREATED_BY   TO CREATED_BY_NM;
+ALTER TABLE ussparc_users.request RENAME COLUMN CREATED_AT   TO CREATED_AT_TS;
+
+-- ===========================
+-- Rename columns in requestrun
+-- ===========================
+ALTER TABLE ussparc_users.requestrun RENAME COLUMN STATUS           TO STATUS_CD;
+ALTER TABLE ussparc_users.requestrun RENAME COLUMN TOTAL_UNITS      TO TOTAL_UNITS_QT;
+ALTER TABLE ussparc_users.requestrun RENAME COLUMN UNITS_TO_PROCESS TO UNITS_TO_PROCESS_QT;
+ALTER TABLE ussparc_users.requestrun RENAME COLUMN STARTED_AT       TO STARTED_AT_TS;
+ALTER TABLE ussparc_users.requestrun RENAME COLUMN UPDATED_AT       TO UPDATED_AT_TS;
+
+-- ===========================
+-- Rename columns in requestlog
+-- ===========================
+ALTER TABLE ussparc_users.requestlog RENAME COLUMN TX        TO MESSAGE_TX;
+ALTER TABLE ussparc_users.requestlog RENAME COLUMN POSTED_AT TO POSTED_AT_TS;
+
+-- ===========================
+-- Rename columns in ref_product
+-- ===========================
+ALTER TABLE ussparc_users.ref_product RENAME COLUMN CREATED_BY TO CREATED_BY_NM;
+ALTER TABLE ussparc_users.ref_product RENAME COLUMN VALID_FROM TO VALID_FROM_TS;
+ALTER TABLE ussparc_users.ref_product RENAME COLUMN VALID_TO   TO VALID_TO_TS;
+
+-- =========================
+-- Rename columns in ref_entity
+-- =========================
+ALTER TABLE ussparc_users.ref_entity RENAME COLUMN CREATED_BY TO CREATED_BY_NM;
+ALTER TABLE ussparc_users.ref_entity RENAME COLUMN VALID_FROM TO VALID_FROM_TS;
+ALTER TABLE ussparc_users.ref_entity RENAME COLUMN VALID_TO   TO VALID_TO_TS;
+
+-- =========================
+-- Rename columns in valuation
+-- =========================
+ALTER TABLE ussparc_users.valuation RENAME COLUMN SNAPSHOT TO SNAPSHOT_CD;
+
+-- =============================
+-- Rename columns in varmodel_entity
+-- =============================
+ALTER TABLE ussparc_users.varmodel_entity RENAME COLUMN VALID_FROM TO VALID_FROM_TS;
+ALTER TABLE ussparc_users.varmodel_entity RENAME COLUMN VALID_TO   TO VALID_TO_TS;
+
+-- ================================
+-- Rename columns in sensitivitypnlstrips
+-- ================================
+ALTER TABLE ussparc_users.sensitivitypnlstrips RENAME COLUMN PNL_IDENTIFIER TO PNL_ID;
+ALTER TABLE ussparc_users.sensitivitypnlstrips RENAME COLUMN SNAPSHOT       TO SNAPSHOT_CD;
+ALTER TABLE ussparc_users.sensitivitypnlstrips RENAME COLUMN VALID_FROM     TO VALID_FROM_TS;
+ALTER TABLE ussparc_users.sensitivitypnlstrips RENAME COLUMN VALID_TO       TO VALID_TO_TS;
+
+-- ======================
+-- Rename columns in var1
+-- ======================
+ALTER TABLE ussparc_users.var1 RENAME COLUMN SNAPSHOT   TO SNAPSHOT_CD;
+ALTER TABLE ussparc_users.var1 RENAME COLUMN VALID_FROM TO VALID_FROM_TS;
+ALTER TABLE ussparc_users.var1 RENAME COLUMN VALID_TO   TO VALID_TO_TS;
+
+-- ===================================
+-- Rename columns in vw_var_rf_mapping
+-- ===================================
+ALTER TABLE ussparc_users.vw_var_rf_mapping RENAME COLUMN CONFIDENCE_LVL   TO CONFIDENCE_LEVEL_QT;
+ALTER TABLE ussparc_users.vw_var_rf_mapping RENAME COLUMN CREATED_BY       TO CREATED_BY_NM;
+ALTER TABLE ussparc_users.vw_var_rf_mapping RENAME COLUMN HOLDING_PERIOD   TO HOLDING_PERIOD_CD;
+ALTER TABLE ussparc_users.vw_var_rf_mapping RENAME COLUMN IS_OFFICIAL      TO IS_OFFICIAL_CD;
+ALTER TABLE ussparc_users.vw_var_rf_mapping RENAME COLUMN TIME_HORIZON     TO TIME_HORIZON_CD;
+ALTER TABLE ussparc_users.vw_var_rf_mapping RENAME COLUMN ALT_NAME         TO ALT_NM;
+ALTER TABLE ussparc_users.vw_var_rf_mapping RENAME COLUMN CURRENCY         TO CURRENCY_CD;
+ALTER TABLE ussparc_users.vw_var_rf_mapping RENAME COLUMN CURVE_TYPE       TO CURVE_TYPE_CD;
+ALTER TABLE ussparc_users.vw_var_rf_mapping RENAME COLUMN EFFECTIVE_CURRENCY TO EFFECTIVE_CURRENCY_CD;
+ALTER TABLE ussparc_users.vw_var_rf_mapping RENAME COLUMN FUTURE_TENOR     TO FUTURE_TENOR_CD;
+ALTER TABLE ussparc_users.vw_var_rf_mapping RENAME COLUMN INDEX_TENOR      TO INDEX_TENOR_CD;
+ALTER TABLE ussparc_users.vw_var_rf_mapping RENAME COLUMN INST_TYPE        TO INST_TYPE_CD;
+
+-- =========================
+-- Rename columns in trade
+-- =========================
+ALTER TABLE ussparc_users.trade RENAME COLUMN SNAPSHOT TO SNAPSHOT_CD;
