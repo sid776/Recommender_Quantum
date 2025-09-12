@@ -26,6 +26,39 @@ def dq_schema(request, report_date: Optional[date] = None, limit: int = 500):
             safe_records.append(safe)
 
         return safe_records
+###################################################################################################################
+class DQSchema:
+    @staticmethod
+    def get(report_date: Optional[date] = None, limit: int = 500) -> List[Dict[str, Any]]:
+        from core.db import DBConnection
+        table = "{CATALOG}.vw_smbc_marx_validation_schema_report"
+
+        unified_date = """
+            coalesce(
+                cast(report_date as date),
+                to_date(cast(report_date as string), 'yyyy-MM-dd'),
+                to_date(cast(report_date as string), 'yyyyMMdd')
+            )
+        """
+
+        with DBConnection() as db:
+            if report_date:
+                rd = report_date.isoformat()
+                q = f"""
+                    SELECT *
+                    FROM {table}
+                    WHERE {unified_date} = date('{rd}')
+                    ORDER BY {unified_date} DESC
+                    LIMIT {int(limit)}
+                """
+            else:
+                q = f"""
+                    SELECT *
+                    FROM {table}
+                    ORDER BY {unified_date} DESC
+                    LIMIT {int(limit)}
+                """
+
 
 #################################################################################################################################################################################
 #dq_reports:
