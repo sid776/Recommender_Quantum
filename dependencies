@@ -1,1 +1,17 @@
 npm install @chakra-ui/react@latest @chakra-ui/icons@latest @emotion/react@latest @emotion/styled@latest framer-motion@latest
+
+npm uninstall @chakra-ui/react @chakra-ui/icons @emotion/react @emotion/styled framer-motion
+rm -rf node_modules package-lock.json
+npm cache clean --force
+
+
+npm install react@18 react-dom@18
+npm install @chakra-ui/react@2.8.2 @chakra-ui/icons@2.1.1 @emotion/react@11.11.4 @emotion/styled@11.11.5 framer-motion@10.16.4
+
+
+npm ls @chakra-ui/react @chakra-ui/icons
+
+npm run dev
+
+grep -R "@chakra-ui/react/dist" node_modules/@chakra-ui/icons -n
+
