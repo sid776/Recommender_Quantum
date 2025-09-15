@@ -29,6 +29,25 @@ npm run dev
 Remove-Item -Recurse -Force node_modules
 Remove-Item -Force package-lock.json
 npm install @chakra-ui/react@2.8.2 @chakra-ui/icons@2.1.1 @emotion/react@11.11.3 @emotion/styled@11.11.0 framer-motion@10.16.4
+############################
+# 1) Remove current install artifacts
+Remove-Item -Recurse -Force node_modules -ErrorAction SilentlyContinue
+Remove-Item -Force package-lock.json -ErrorAction SilentlyContinue
+
+# 2) Install a known-good, compatible set (exact versions)
+npm install -E `
+  @chakra-ui/react@2.8.2 `
+  @chakra-ui/icons@2.1.1 `
+  @emotion/react@11.11.4 `
+  @emotion/styled@11.11.0 `
+  framer-motion@10.17.0
+
+# 3) (optional) if you have a .vite cache, clear it
+Remove-Item -Recurse -Force node_modules\.vite -ErrorAction SilentlyContinue
+
+# 4) Run dev
+npm run dev
+
 
 
 
