@@ -1,0 +1,40 @@
+# backend/services/api/dq_stats.py
+from __future__ import annotations
+from datetime import date
+from typing import Any, Dict, List, Optional
+
+from ninja import Router
+from services.api.authentication import AzureADAuthentication
+from backend.objects.dq_reports import DQReports
+
+router = Router(tags=["DQ Reports"])
+
+# --- JSON-safe conversion (numpy, decimals, NaNs, etc.)
+def _to_jsonable(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    import numpy as np
+    import math
+    out: List[Dict[str, Any]] = []
+    for r in rows or []:
+        safe: Dict[str, Any] = {}
+        for k, v in (r or {}).items():
+            if isinstance(v, (np.integer,)):
+                v = int(v)
+            elif isinstance(v, (np.floating,)):
+                v = float(v)
+                if math.isnan(v) or math.isinf(v):
+                    v = None
+            elif isinstance(v, (np.bool_,)):
+                v = bool(v)
+            safe[k] = v
+        out.append(safe)
+    return out
+
+@router.get("/dq/combined", response=List[Dict[str, Any]])
+def dq_combined(
+    request,
+    report: str,                               # "summary" | "staleness" | ...
+    report_date: Optional[date] = None,
+    limit: int = 500,
+):
+    rows = DQReports.get(report=report, report_date=report_date, limit=limit)
+    return _to_jsonable(rows)
