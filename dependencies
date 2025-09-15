@@ -25,3 +25,10 @@ npm i @chakra-ui/react@^2 @chakra-ui/icons@^2 @emotion/react@^11 @emotion/styled
 npm run dev
 
 
+##############################
+Remove-Item -Recurse -Force node_modules
+Remove-Item -Force package-lock.json
+npm install @chakra-ui/react@2.8.2 @chakra-ui/icons@2.1.1 @emotion/react@11.11.3 @emotion/styled@11.11.0 framer-motion@10.16.4
+
+
+
