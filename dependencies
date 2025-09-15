@@ -15,3 +15,13 @@ npm run dev
 
 grep -R "@chakra-ui/react/dist" node_modules/@chakra-ui/icons -n
 
+# blow away the mismatched install
+rm -rf node_modules package-lock.json
+
+# install the compatible set (Chakra v2 line)
+npm i @chakra-ui/react@^2 @chakra-ui/icons@^2 @emotion/react@^11 @emotion/styled@^11 framer-motion@^10
+
+# start
+npm run dev
+
+
