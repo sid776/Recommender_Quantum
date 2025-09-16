@@ -47,6 +47,8 @@ Remove-Item -Recurse -Force node_modules\.vite -ErrorAction SilentlyContinue
 
 # 4) Run dev
 npm run dev
+############################################################
+npm install -E @chakra-ui/icons@2.1.1
 
 
 
