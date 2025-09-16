@@ -5,7 +5,7 @@ from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
 from ninja import Router
-from fastapi.responses import JSONResponse
+# ❌ remove: from fastapi.responses import JSONResponse
 
 from backend.objects.dq_reports import DQReports
 
@@ -16,18 +16,14 @@ def _to_jsonable(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     import numpy as np
     import pandas as pd
 
-    safe_rows: List[Dict[str, Any]] = []
+    out: List[Dict[str, Any]] = []
     for r in rows or []:
         safe: Dict[str, Any] = {}
         for k, v in (r or {}).items():
-            key = str(k)
-
-            # pandas missing?
-            if v is not None and (pd.isna(v) if hasattr(pd, "isna") else False):
+            # normalize pandas/NumPy/Decimal/dates
+            if v is not None and hasattr(pd, "isna") and pd.isna(v):
                 v = None
-
-            # numpy scalars
-            if isinstance(v, (np.integer,)):
+            elif isinstance(v, (np.integer,)):
                 v = int(v)
             elif isinstance(v, (np.floating,)):
                 v = float(v)
@@ -35,20 +31,15 @@ def _to_jsonable(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                     v = None
             elif isinstance(v, (np.bool_,)):
                 v = bool(v)
-
-            # timestamps / dates
             elif isinstance(v, (pd.Timestamp, datetime)):
                 v = v.isoformat()
             elif isinstance(v, date):
                 v = v.isoformat()
-
-            # Decimal
             elif isinstance(v, Decimal):
                 v = float(v)
-
-            safe[key] = v
-        safe_rows.append(safe)
-    return safe_rows
+            safe[str(k)] = v
+        out.append(safe)
+    return out
 
 @router.get("/dq/combined", response=List[Dict[str, Any]])
 def dq_combined(
@@ -57,4 +48,5 @@ def dq_combined(
     limit: int = 500,
 ):
     rows = DQReports.get_all(report_date=report_date, limit=limit)
-    return JSONResponse(content=_to_jsonable(rows))
+    # ✅ return a plain list; Ninja will serialize
+    return _to_jsonable(rows)
