@@ -19,37 +19,20 @@ GROUP_COLS = ["rule_type", "book"]
 class DQReports:
     @staticmethod
     def _sql(view: str, report_date: Optional[date], limit: int) -> str:
-        """
-        Be permissive with date columns + formats:
-        - columns: report_date | as_of_date | as_of_dt
-        - formats: 'YYYY-MM-DD' and 'YYYYMMDD'
-        """
         if report_date:
-            d_dash = report_date.strftime("%Y-%m-%d")   # 2025-04-04
+            d_dash = report_date.strftime("%Y-%m-%d")
             return f"""
                 SELECT * FROM {view}
                 WHERE
-                      to_date(CAST(report_date AS STRING))                 = to_date('{d_dash}')
-                   OR to_date(CAST(report_date AS STRING), 'yyyyMMdd')     = to_date('{d_dash}')
-                   OR to_date(CAST(as_of_date  AS STRING))                 = to_date('{d_dash}')
-                   OR to_date(CAST(as_of_date  AS STRING), 'yyyyMMdd')     = to_date('{d_dash}')
-                   OR to_date(CAST(as_of_dt    AS STRING))                 = to_date('{d_dash}')
-                   OR to_date(CAST(as_of_dt    AS STRING), 'yyyyMMdd')     = to_date('{d_dash}')
-                ORDER BY coalesce(
-                    to_timestamp(CAST(report_date AS STRING)),
-                    to_timestamp(CAST(as_of_date  AS STRING)),
-                    to_timestamp(CAST(as_of_dt    AS STRING))
-                ) DESC
+                       to_date(CAST(report_date AS STRING))             = to_date('{d_dash}')
+                    OR to_date(CAST(report_date AS STRING), 'yyyyMMdd') = to_date('{d_dash}')
+                ORDER BY to_timestamp(CAST(report_date AS STRING)) DESC
                 LIMIT {limit}
             """
         else:
             return f"""
                 SELECT * FROM {view}
-                ORDER BY coalesce(
-                    to_timestamp(CAST(report_date AS STRING)),
-                    to_timestamp(CAST(as_of_date  AS STRING)),
-                    to_timestamp(CAST(as_of_dt    AS STRING))
-                ) DESC
+                ORDER BY to_timestamp(CAST(report_date AS STRING)) DESC
                 LIMIT {limit}
             """
 
@@ -75,11 +58,10 @@ class DQReports:
                 if df is None or df.empty:
                     continue
                 df = DQReports._normalize(df)
-                df.insert(0, "report_type", rpt)  # tag the source
+                df.insert(0, "report_type", rpt)
                 frames.append(df)
 
         if not frames:
             return []
-
         out = pd.concat(frames, ignore_index=True)
         return out.to_dict(orient="records")
