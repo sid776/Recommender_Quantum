@@ -50,6 +50,8 @@ npm run dev
 ############################################################
 npm install -E @chakra-ui/icons@2.1.1
 
+npm ls @chakra-ui/react @chakra-ui/icons
+
 
 
 
