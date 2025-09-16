@@ -1,18 +1,20 @@
-# backend/objects/dq_reports.py
 from typing import Any, Dict, List, Optional
 from datetime import date
 import pandas as pd
+
 from core.db import DBConnection
 
 CATALOG = "niwa_dev.gold"
+
 VIEW_BY_REPORT = {
-    "summary":       f"{CATALOG}.vw_smbc_marx_validation_summary_report",
-    "staleness":     f"{CATALOG}.vw_smbc_marx_validation_staleness_report",
-    "outliers":      f"{CATALOG}.vw_smbc_marx_validation_outlier_report",
-    "availability":  f"{CATALOG}.vw_smbc_marx_validation_availability_report",
-    "reasonability": f"{CATALOG}.vw_smbc_marx_validation_reasonability_report",
-    "schema":        f"{CATALOG}.vw_smbc_marx_validation_schema_report",
+    "summary":      f"{CATALOG}.vw_smbc_marx_validation_summary_report",
+    "staleness":    f"{CATALOG}.vw_smbc_marx_validation_staleness_report",
+    "outliers":     f"{CATALOG}.vw_smbc_marx_validation_outlier_report",
+    "availability": f"{CATALOG}.vw_smbc_marx_validation_availability_report",
+    "reasonability":f"{CATALOG}.vw_smbc_marx_validation_reasonability_report",
+    "schema":       f"{CATALOG}.vw_smbc_marx_validation_schema_report",
 }
+
 GROUP_COLS = ["rule_type", "book"]
 
 class DQReports:
@@ -21,21 +23,37 @@ class DQReports:
         if report_date:
             d = report_date.strftime("%Y-%m-%d")
             return f"""
-                SELECT * FROM {view}
-                WHERE to_date(CAST(report_date AS STRING)) = to_date('{d}')
-                ORDER BY to_timestamp(CAST(report_date AS STRING)) DESC
+                SELECT *
+                FROM {view}
+                WHERE
+                    COALESCE(
+                        CAST(report_date AS DATE),
+                        TO_DATE(CAST(report_date AS STRING), 'yyyyMMdd'),
+                        TO_DATE(CAST(report_date AS STRING), 'yyyy-MM-dd')
+                    ) = TO_DATE('{d}')
+                ORDER BY
+                    COALESCE(
+                        CAST(report_date AS DATE),
+                        TO_DATE(CAST(report_date AS STRING), 'yyyyMMdd'),
+                        TO_DATE(CAST(report_date AS STRING), 'yyyy-MM-dd')
+                    ) DESC
                 LIMIT {limit}
             """
-        return f"""
-            SELECT * FROM {view}
-            ORDER BY to_timestamp(CAST(report_date AS STRING)) DESC
-            LIMIT {limit}
-        """
+        else:
+            return f"""
+                SELECT *
+                FROM {view}
+                ORDER BY
+                    COALESCE(
+                        CAST(report_date AS DATE),
+                        TO_DATE(CAST(report_date AS STRING), 'yyyyMMdd'),
+                        TO_DATE(CAST(report_date AS STRING), 'yyyy-MM-dd')
+                    ) DESC
+                LIMIT {limit}
+            """
 
     @staticmethod
     def _normalize(df: pd.DataFrame) -> pd.DataFrame:
-        if df.empty:
-            return df
         renames: Dict[str, str] = {}
         if "table" in df.columns and "table_name" not in df.columns:
             renames["table"] = "table_name"
@@ -52,14 +70,13 @@ class DQReports:
         with DBConnection() as db:
             for key, view in VIEW_BY_REPORT.items():
                 q = DQReports._sql(view, report_date, limit)
-                try:
-                    part = db.execute(q, df=True)
-                except Exception:
+                df = db.execute(q, df=True)
+                if df is None or df.empty:
                     continue
-                if isinstance(part, pd.DataFrame) and not part.empty:
-                    part.insert(0, "report_type", key)  # e.g., 'summary', 'outliers'
-                    frames.append(part)
+                df = DQReports._normalize(df)
+                df.insert(0, "report_type", key)
+                frames.append(df)
         if not frames:
             return []
-        df = DQReports._normalize(pd.concat(frames, ignore_index=True, sort=False))
-        return df.to_dict(orient="records")
+        out = pd.concat(frames, ignore_index=True, sort=False)
+        return out.to_dict(orient="records")
