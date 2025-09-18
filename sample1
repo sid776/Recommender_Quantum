@@ -1,0 +1,5 @@
+gold   = (
+        f"{os.getenv('DATABRICKS_NIWA_CATALOG')}.{os.getenv('DATABRICKS_NIWA_CATALOG_GOLD')}"
+        if os.getenv("USE_NIWA_GOLD", "1") in ("1", "true", "True")
+        else f"{os.getenv('DATABRICKS_CATALOG')}.{os.getenv('DATABRICKS_GOLD_LAYER')}"
+    ),
