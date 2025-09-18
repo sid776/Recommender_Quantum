@@ -1,173 +1,172 @@
+# backend/objects/dq_reports.py
+from __future__ import annotations
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 from datetime import date, datetime
-import inspect
 
-_ReportRow = Dict[str, Any]
+# ---- helpers ---------------------------------------------------------------
 
-_DATE_KWS = (
-    "report_date", "report_dt",
-    "cob_date", "cob_dt",
-    "as_of_date", "as_of_dt",
-    "cob", "date"
+_DATE_KEYS: Tuple[str, ...] = (
+    "report_date",
+    "cob_dt",
+    "cob_date",
+    "as_of_date",
+    "date",
 )
 
-def _print_source(obj_cls: type) -> None:
-    schema = getattr(obj_cls, "TABLE_SCHEMA", "?")
-    table  = getattr(obj_cls, "TABLE_NAME",  "?")
-    print(f"Schema and Table/View being fetched from: {schema}.{table}")
+def _yyyymmdd(d: date) -> str:
+    return d.strftime("%Y%m%d")
 
-def _supports_kw(obj_cls: type, name: str) -> bool:
-    fn = getattr(obj_cls, "get_dataframe", None)
-    if not callable(fn):
-        return False
-    sig = inspect.signature(fn)
-    return name in sig.parameters
+def _yyyy_mm_dd(d: date) -> str:
+    return d.strftime("%Y-%m-%d")
 
-def _to_records(df) -> List[_ReportRow]:
-    if df is None:
+def _normalize_row_date(row: Dict[str, Any]) -> Optional[str]:
+    """
+    From a record (dict), find the first known date-like key and return a
+    canonical 'YYYY-MM-DD' string for comparison.
+    Supports values like date/datetime, 'YYYY-MM-DD', 'YYYYMMDD', or ints.
+    """
+    for k in _DATE_KEYS:
+        if k in row and row[k] is not None and row[k] != "":
+            v = row[k]
+            # pandas Timestamp / datetime / date
+            if hasattr(v, "isoformat"):
+                try:
+                    # pandas Timestamp.isoformat() returns full ts; slice date
+                    return str(v.isoformat())[:10]
+                except Exception:
+                    pass
+            # numeric like 20250917
+            if isinstance(v, (int, float)) and not isinstance(v, bool):
+                s = str(int(v))
+                if len(s) == 8:
+                    return f"{s[0:4]}-{s[4:6]}-{s[6:8]}"
+            # strings
+            if isinstance(v, str):
+                s = v.strip()
+                if len(s) == 10 and s[4] == "-" and s[7] == "-":
+                    return s  # already YYYY-MM-DD
+                if len(s) == 8 and s.isdigit():
+                    return f"{s[0:4]}-{s[4:6]}-{s[6:8]}"
+    return None
+
+def _as_records(df_obj: Any) -> List[Dict[str, Any]]:
+    """
+    Convert an object (likely a pandas DataFrame) into list-of-dicts safely
+    without importing pandas here.
+    """
+    if df_obj is None:
         return []
-    if isinstance(df, list):
-        return [x for x in df if isinstance(x, dict)]
-    to_dict = getattr(df, "to_dict", None)
+    to_dict = getattr(df_obj, "to_dict", None)
     if callable(to_dict):
         try:
-            return to_dict(orient="records")  # type: ignore[arg-type]
-        except Exception:
-            return []
+            return to_dict(orient="records")  # type: ignore
+        except TypeError:
+            # some libs use different signature; fall back
+            return to_dict()
     return []
 
-def _parse_dt(v: Any) -> Optional[date]:
-    if v is None:
-        return None
-    if isinstance(v, date) and not isinstance(v, datetime):
-        return v
-    if isinstance(v, datetime):
-        return v.date()
-    if isinstance(v, str):
-        s = v.strip()
-        if len(s) == 10 and s[4] == "-" and s[7] == "-":
-            try:
-                return date(int(s[0:4]), int(s[5:7]), int(s[8:10]))
-            except Exception:
-                return None
-        if len(s) == 8 and s.isdigit():
-            try:
-                return date(int(s[0:4]), int(s[4:6]), int(s[6:8]))
-            except Exception:
-                return None
-    return None
+def _debug_source(obj_cls: Any) -> None:
+    """
+    Print exactly one line with the fully-qualified source the object maps to,
+    forcing the catalog to 'niwa_dev' per your environment.
+    """
+    schema = getattr(obj_cls, "TABLE_SCHEMA", "gold")
+    table = getattr(obj_cls, "TABLE_NAME", "")
+    print(f"Schema and Table/View being fetched from: niwa_dev.{schema}.{table}")
 
-def _row_date(r: _ReportRow) -> Optional[date]:
-    for k in ("report_date","report_dt","as_of_date","as_of_dt","cob_date","cob_dt","cob","date"):
-        if k in r:
-            d = _parse_dt(r.get(k))
-            if d:
-                return d
-    return None
-
-def _filter_by_date(rows: Iterable[_ReportRow], target: Optional[date]) -> List[_ReportRow]:
-    if not target:
-        return list(rows)
-    out: List[_ReportRow] = []
-    for r in rows:
-        if _row_date(r) == target:
-            out.append(r)
-    return out
-
-def _ensure_group_keys(rows: List[_ReportRow]) -> List[_ReportRow]:
-    out: List[_ReportRow] = []
-    for r in rows:
-        if "rule_type" not in r:
-            r = {**r, "rule_type": ""}
-        if "book" not in r:
-            r = {**r, "book": ""}
-        out.append(r)
-    return out
-
-def _date_variants(d: date) -> List[Any]:
-    return [d, d.isoformat(), f"{d.year:04d}{d.month:02d}{d.day:02d}"]
-
-def _call_get_dataframe(obj_cls: type, the_date: Optional[date], limit: int) -> List[_ReportRow]:
-    _print_source(obj_cls)
-    fn = getattr(obj_cls, "get_dataframe", None)
-    if not callable(fn):
-        print("get_dataframe not found")
-        return []
-
-    base_kwargs: Dict[str, Any] = {}
-    if _supports_kw(obj_cls, "pyspark"):
-        base_kwargs["pyspark"] = False
-    max_rows = max(limit, 5000)
-    if _supports_kw(obj_cls, "limit"):
-        base_kwargs["limit"] = max_rows
-    elif _supports_kw(obj_cls, "top"):
-        base_kwargs["top"] = max_rows
-    elif _supports_kw(obj_cls, "rows"):
-        base_kwargs["rows"] = max_rows
-
-    if the_date:
-        for dk in _DATE_KWS:
-            if _supports_kw(obj_cls, dk):
-                for dv in _date_variants(the_date):
-                    kwargs = {**base_kwargs, dk: dv}
-                    try:
-                        print(f"Calling {obj_cls.__name__}.get_dataframe with {kwargs}")
-                        df = fn(**kwargs)
-                        recs = _to_records(df)
-                        print(f"Returned rows: {len(recs)}")
-                        if recs:
-                            return _ensure_group_keys(recs)
-                    except Exception as e:
-                        print(f"Error call {obj_cls.__name__} {kwargs}: {e}")
-
-    try:
-        print(f"Calling {obj_cls.__name__}.get_dataframe with {base_kwargs} (no date)")
-        df = fn(**base_kwargs)
-        recs = _to_records(df)
-        print(f"Returned rows (no date): {len(recs)}")
-        if the_date:
-            recs = _filter_by_date(recs, the_date)
-            print(f"Rows after Python-side date filter: {len(recs)}")
-        if recs:
-            return _ensure_group_keys(recs)
-    except Exception as e:
-        print(f"Error call {obj_cls.__name__} wide slice: {e}")
-
-    return []
+# ---- public API ------------------------------------------------------------
 
 class DQReports:
+    """
+    Object-style façade that fans out to the individual DQ object models,
+    normalizes dates, and returns list-of-dicts. No raw SQL.
+    """
+
     @staticmethod
-    def get_summary(report_date: Optional[date] = None, limit: int = 500) -> List[_ReportRow]:
+    def _fetch_any(
+        obj_cls: Any,
+        report_date: Optional[date],
+        limit: int,
+        tag: str,
+    ) -> List[Dict[str, Any]]:
+        """
+        Call <Object>.get_dataframe(...) using enterprise-style kwargs,
+        then filter rows by report_date in Python so we don't depend on the
+        exact column name/format in each view.
+        """
+        _debug_source(obj_cls)
+
+        # Try to ask the object for a generous page; we filter after.
+        # Many enterprise objects accept 'order' and 'limit' kwargs.
+        try:
+            df = obj_cls.get_dataframe(limit=limit if limit and limit > 0 else 5000, pyspark=False)
+        except TypeError:
+            # if signature is stricter, try without limit
+            df = obj_cls.get_dataframe(pyspark=False)
+
+        rows = _as_records(df)
+        if not rows:
+            return []
+
+        if report_date is None:
+            # no filtering requested; just tag and return
+            for r in rows:
+                r.setdefault("report_type", tag)
+            return rows
+
+        target = _yyyy_mm_dd(report_date)
+        target_alt = _yyyymmdd(report_date)
+
+        filtered: List[Dict[str, Any]] = []
+        for r in rows:
+            d_norm = _normalize_row_date(r)
+            if d_norm == target:
+                r.setdefault("report_type", tag)
+                filtered.append(r)
+            else:
+                # occasionally rows store raw 8-digit strings and _normalize_row_date
+                # may fail if the field is nested; as a safety, do a loose check:
+                for k in _DATE_KEYS:
+                    v = r.get(k)
+                    if isinstance(v, str) and v.strip() in (target, target_alt):
+                        r.setdefault("report_type", tag)
+                        filtered.append(r)
+                        break
+
+        return filtered
+
+    @staticmethod
+    def get_summary(report_date: Optional[date] = None, limit: int = 500) -> List[Dict[str, Any]]:
         from objects.dq.summary import DQSummary
-        return _call_get_dataframe(DQSummary, report_date, limit)
+        return DQReports._fetch_any(DQSummary, report_date, limit, "summary")
 
     @staticmethod
-    def get_staleness(report_date: Optional[date] = None, limit: int = 500) -> List[_ReportRow]:
+    def get_staleness(report_date: Optional[date] = None, limit: int = 500) -> List[Dict[str, Any]]:
         from objects.dq.staleness import DQStaleness
-        return _call_get_dataframe(DQStaleness, report_date, limit)
+        return DQReports._fetch_any(DQStaleness, report_date, limit, "staleness")
 
     @staticmethod
-    def get_outliers(report_date: Optional[date] = None, limit: int = 500) -> List[_ReportRow]:
+    def get_outliers(report_date: Optional[date] = None, limit: int = 500) -> List[Dict[str, Any]]:
         from objects.dq.outliers import DQOutliers
-        return _call_get_dataframe(DQOutliers, report_date, limit)
+        return DQReports._fetch_any(DQOutliers, report_date, limit, "outliers")
 
     @staticmethod
-    def get_availability(report_date: Optional[date] = None, limit: int = 500) -> List[_ReportRow]:
+    def get_availability(report_date: Optional[date] = None, limit: int = 500) -> List[Dict[str, Any]]:
         from objects.dq.availability import DQAvailability
-        return _call_get_dataframe(DQAvailability, report_date, limit)
+        return DQReports._fetch_any(DQAvailability, report_date, limit, "availability")
 
     @staticmethod
-    def get_reasonability(report_date: Optional[date] = None, limit: int = 500) -> List[_ReportRow]:
+    def get_reasonability(report_date: Optional[date] = None, limit: int = 500) -> List[Dict[str, Any]]:
         from objects.dq.reasonability import DQReasonability
-        return _call_get_dataframe(DQReasonability, report_date, limit)
+        return DQReports._fetch_any(DQReasonability, report_date, limit, "reasonability")
 
     @staticmethod
-    def get_schema(report_date: Optional[date] = None, limit: int = 500) -> List[_ReportRow]:
+    def get_schema(report_date: Optional[date] = None, limit: int = 500) -> List[Dict[str, Any]]:
         from objects.dq.schema import DQSchema
-        return _call_get_dataframe(DQSchema, report_date, limit)
+        return DQReports._fetch_any(DQSchema, report_date, limit, "schema")
 
     @staticmethod
-    def get_all(report_date: Optional[date] = None, limit: int = 500) -> List[_ReportRow]:
+    def get_all(report_date: Optional[date] = None, limit: int = 500) -> List[Dict[str, Any]]:
         sections: List[Tuple[str, Any]] = [
             ("summary",       DQReports.get_summary),
             ("staleness",     DQReports.get_staleness),
@@ -176,14 +175,16 @@ class DQReports:
             ("reasonability", DQReports.get_reasonability),
             ("schema",        DQReports.get_schema),
         ]
-        out: List[_ReportRow] = []
+
+        out: List[Dict[str, Any]] = []
         for name, getter in sections:
-            rows = getter(report_date=report_date, limit=limit)
-            print(f"Section {name}: {len(rows)} rows")
+            try:
+                rows = getter(report_date=report_date, limit=limit)
+            except TypeError:
+                rows = getter(report_date=report_date)  # some wrappers only accept report_date
             if rows:
+                # make sure report_type is present (safety if object already sets it)
                 for r in rows:
-                    if "report_type" not in r:
-                        r["report_type"] = name
+                    r.setdefault("report_type", name)
                 out.extend(rows)
-        print(f"Combined total rows: {len(out)}")
         return out
