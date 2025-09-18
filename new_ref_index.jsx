@@ -102,6 +102,7 @@ export default function CosmosReports() {
       const data = Array.isArray(json) ? json : Array.isArray(json?.rows) ? json.rows : [];
       setRows(data || []);
 
+      // seed latest date into the date field if empty
       if ((!dateStr || !dateStr.length) && data?.length) {
         const raw = data[0]?.report_date ?? "";
         let normalized = "";
@@ -158,29 +159,26 @@ export default function CosmosReports() {
                   <div className="w-[220px]">
                     <InputFieldset
                       id="report_date"
-                      label=""          // no (optional); label kept blank to match reference
+                      label=""   // remove (optional)
                       fieldName="report_date"
                       tooltipMsg="COB"
                       type="date"
                     />
                   </div>
                 </div>
-
-                {/* Green funnel icon (not a button) */}
+                {/* Green funnel icon */}
                 <i
                   title="Global Filter"
-                  className={`ph ph-funnel-simple cursor-pointer ${
-                    showFloatingFilters ? "text-[#0f5c2e]" : "text-[#0f5c2e]"
-                  }`}
-                  style={{ fontSize: 22, marginTop: -2 }}
+                  className="ph ph-funnel cursor-pointer text-green-700"
+                  style={{ fontSize: 26 }}
                   onClick={() => setShowFloatingFilters((v) => !v)}
                 />
               </div>
             </div>
 
-            {/* Section header */}
+            {/* Section header row */}
             <div className="mt-3 rounded-md">
-              <div className="flex items-center justify-between px-1 py-2">
+              <div className="flex items-center justify-between px-3 py-2">
                 <div className="flex items-center gap-2">
                   <i
                     className={`ph ${open ? "ph-caret-down" : "ph-caret-right"} cursor-pointer`}
@@ -195,12 +193,10 @@ export default function CosmosReports() {
                 <Box
                   className="ag-theme-alpine rounded-b-lg"
                   style={{
-                    height: "calc(100vh - 240px)", // fits to bottom of screen
+                    height: "calc(100vh - 240px)",
                     width: "100%",
                     border: "none",
-                    // remove theme borders completely
                     ["--ag-borders"]: "none",
-                    ["--ag-card-radius"]: "8px",
                     ["--ag-border-color"]: "transparent",
                   }}
                 >
@@ -225,25 +221,6 @@ export default function CosmosReports() {
                       minWidth: 260,
                       pinned: "left",
                     }}
-                    sideBar={{
-                      position: "right",
-                      defaultToolPanel: null,
-                      toolPanels: [
-                        {
-                          id: "columns",
-                          labelDefault: "Columns",
-                          iconKey: "columns",
-                          toolPanel: "agColumnsToolPanel",
-                          toolPanelParams: { suppressPivotMode: true },
-                        },
-                        {
-                          id: "filters",
-                          labelDefault: "Filter",
-                          iconKey: "filter",
-                          toolPanel: "agFiltersToolPanel",
-                        },
-                      ],
-                    }}
                     headerHeight={42}
                     floatingFiltersHeight={36}
                     loading={loading}
@@ -251,11 +228,6 @@ export default function CosmosReports() {
                     enableRangeSelection={true}
                     suppressAggFuncInHeader={true}
                     onFirstDataRendered={onFirstDataRendered}
-                    getContextMenuItems={(params) => {
-                      const def = params.defaultItems;
-                      const custom = ["chartRange", "pivotChart"];
-                      return [...def, "separator", ...custom];
-                    }}
                   />
                 </Box>
               )}
