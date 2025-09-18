@@ -136,6 +136,7 @@ export default function CosmosReports() {
     const api = gridRef.current?.api;
     const columnApi = gridRef.current?.columnApi;
     if (!api || !columnApi) return;
+
     const ids = [];
     columnApi.getColumns()?.forEach((c) => ids.push(c.getColId()));
     columnApi.autoSizeColumns(ids, true);
@@ -145,52 +146,57 @@ export default function CosmosReports() {
 
   return (
     <Box className="overflow-auto" height="calc(100vh - 70px)">
-      {/* CSS overrides: borderless grid + compact COB input + green funnel */}
-      <style>{`
-        .ag-theme-alpine .ag-root-wrapper { border: 0 !important; }
-        .ag-theme-alpine .ag-header { border-bottom: 0; }
-        .ag-theme-alpine .ag-side-bar { border-left: 0; }
-        #cosmos-cob fieldset { margin: 0; }
-        #cosmos-cob input { height: 34px; line-height: 34px; padding: 0 10px; font-weight: 600; }
-      `}</style>
-
       <FormProvider {...methods}>
         <form className="flex flex-col gap-3">
-          <div className="p-4 bg-white rounded-lg" style={{ marginTop: -16, paddingTop: 10, paddingBottom: 10 }}>
-            {/* Reference-like top bar: right-aligned, compact COB + green funnel */}
-            <div className="flex items-center justify-end gap-3">
-              <span className="text-sm font-semibold tracking-wide">COB:</span>
-              <div id="cosmos-cob" className="w-[180px]">
-                <InputFieldset
-                    id="report_date"
-                    label=""
-                    fieldName="report_date"
-                    type="date"
-                    registerOptions={{ required: true }}
+          <div className="p-4 bg-white shadow-md rounded-lg" style={{ marginTop: -16 }}>
+            <div className="flex items-center justify-between">
+              <div className="text-lg font-bold">DQ Reports</div>
+              <div className="flex items-center gap-4">
+                <div className="flex items-end gap-2">
+                  <span className="text-xs font-semibold text-gray-600">COB:</span>
+                  <div className="w-[220px]">
+                    <InputFieldset
+                      id="report_date"
+                      label=""               // no "(optional)" label text
+                      fieldName="report_date"
+                      tooltipMsg="COB"
+                      type="date"
+                      required               // remove optional hint
+                      registerOptions={{ required: "required" }}
+                    />
+                  </div>
+                </div>
+                <i
+                  title="Global Filter"
+                  className="ph ph-funnel cursor-pointer text-green-700"
+                  style={{ fontSize: 26 }}
+                  onClick={() => setShowFloatingFilters((v) => !v)}
                 />
               </div>
-              <i
-                title="Toggle Filters"
-                className="ph ph-funnel-simple cursor-pointer"
-                style={{ fontSize: 26, color: "#0f5c2e", transform: "translateY(-2px)" }}
-                onClick={() => setShowFloatingFilters((v) => !v)}
-              />
             </div>
 
-            <div className="mt-2">
-              <div className="flex items-center gap-2 mb-2">
-                <i
-                  className={`ph ${open ? "ph-caret-down" : "ph-caret-right"} cursor-pointer`}
-                  onClick={() => setOpen((v) => !v)}
-                />
-                <span className="font-semibold">Combined DQ Reports</span>
-                <span className="text-xs text-gray-600">({rows.length})</span>
+            <div className="mt-3 rounded-md">
+              <div className="flex items-center justify-between px-3 py-2">
+                <div className="flex items-center gap-2">
+                  <i
+                    className={`ph ${open ? "ph-caret-down" : "ph-caret-right"} cursor-pointer`}
+                    onClick={() => setOpen((v) => !v)}
+                  />
+                  <span className="font-semibold"></span>
+                  <span className="text-xs text-gray-600"></span>
+                </div>
               </div>
 
               {open && (
                 <Box
-                  className="ag-theme-alpine"
-                  style={{ height: "calc(100vh - 200px)", width: "100%" }}
+                  className="ag-theme-alpine rounded-b-lg"
+                  style={{
+                    height: "calc(100vh - 240px)",
+                    width: "100%",
+                    border: "none",
+                    ["--ag-borders"]: "none",
+                    ["--ag-border-color"]: "transparent",
+                  }}
                 >
                   <AgGridReact
                     ref={gridRef}
@@ -213,25 +219,6 @@ export default function CosmosReports() {
                       minWidth: 260,
                       pinned: "left",
                     }}
-                    sideBar={{
-                      position: "right",
-                      defaultToolPanel: null,
-                      toolPanels: [
-                        {
-                          id: "columns",
-                          labelDefault: "Columns",
-                          iconKey: "columns",
-                          toolPanel: "agColumnsToolPanel",
-                          toolPanelParams: { suppressPivotMode: true },
-                        },
-                        {
-                          id: "filters",
-                          labelDefault: "Filter",
-                          iconKey: "filter",
-                          toolPanel: "agFiltersToolPanel",
-                        },
-                      ],
-                    }}
                     headerHeight={42}
                     floatingFiltersHeight={36}
                     loading={loading}
@@ -239,11 +226,6 @@ export default function CosmosReports() {
                     enableRangeSelection={true}
                     suppressAggFuncInHeader={true}
                     onFirstDataRendered={onFirstDataRendered}
-                    getContextMenuItems={(params) => {
-                      const def = params.defaultItems;
-                      const custom = ["chartRange", "pivotChart"];
-                      return [...def, "separator", ...custom];
-                    }}
                   />
                 </Box>
               )}
