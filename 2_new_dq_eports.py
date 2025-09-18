@@ -26,9 +26,14 @@ def _supports_kw(obj_cls: type, name: str) -> bool:
 def _to_records(df) -> List[_ReportRow]:
     if df is None:
         return []
+    if isinstance(df, list):
+        return [x for x in df if isinstance(x, dict)]
     to_dict = getattr(df, "to_dict", None)
     if callable(to_dict):
-        return to_dict(orient="records")  # type: ignore[arg-type]
+        try:
+            return to_dict(orient="records")  # type: ignore[arg-type]
+        except Exception:
+            return []
     return []
 
 def _parse_dt(v: Any) -> Optional[date]:
@@ -80,26 +85,18 @@ def _ensure_group_keys(rows: List[_ReportRow]) -> List[_ReportRow]:
     return out
 
 def _date_variants(d: date) -> List[Any]:
-    # try both date object and strings commonly accepted by object layer
-    return [
-        d,
-        d.isoformat(),                      # YYYY-MM-DD
-        f"{d.year:04d}{d.month:02d}{d.day:02d}",  # YYYYMMDD
-    ]
+    return [d, d.isoformat(), f"{d.year:04d}{d.month:02d}{d.day:02d}"]
 
 def _call_get_dataframe(obj_cls: type, the_date: Optional[date], limit: int) -> List[_ReportRow]:
     _print_source(obj_cls)
-
     fn = getattr(obj_cls, "get_dataframe", None)
     if not callable(fn):
+        print("get_dataframe not found")
         return []
 
     base_kwargs: Dict[str, Any] = {}
     if _supports_kw(obj_cls, "pyspark"):
         base_kwargs["pyspark"] = False
-    if _supports_kw(obj_cls, "sample"):
-        base_kwargs["sample"] = False
-    # push a high limit (many object layers default to 10)
     max_rows = max(limit, 5000)
     if _supports_kw(obj_cls, "limit"):
         base_kwargs["limit"] = max_rows
@@ -107,48 +104,34 @@ def _call_get_dataframe(obj_cls: type, the_date: Optional[date], limit: int) -> 
         base_kwargs["top"] = max_rows
     elif _supports_kw(obj_cls, "rows"):
         base_kwargs["rows"] = max_rows
-    if _supports_kw(obj_cls, "order"):
-        base_kwargs["order"] = [
-            "report_date__desc".upper(),
-            "report_dt__desc".upper(),
-            "as_of_date__desc".upper(),
-            "as_of_dt__desc".upper(),
-            "cob_date__desc".upper(),
-            "cob_dt__desc".upper(),
-        ]
 
-    # 1) Try passing a date kw if supported, in multiple formats
     if the_date:
         for dk in _DATE_KWS:
             if _supports_kw(obj_cls, dk):
                 for dv in _date_variants(the_date):
+                    kwargs = {**base_kwargs, dk: dv}
                     try:
-                        df = fn(**{**base_kwargs, dk: dv})
+                        print(f"Calling {obj_cls.__name__}.get_dataframe with {kwargs}")
+                        df = fn(**kwargs)
                         recs = _to_records(df)
+                        print(f"Returned rows: {len(recs)}")
                         if recs:
                             return _ensure_group_keys(recs)
-                    except Exception:
-                        continue
+                    except Exception as e:
+                        print(f"Error call {obj_cls.__name__} {kwargs}: {e}")
 
-    # 2) No-date wide slice, then filter by day on Python side
     try:
+        print(f"Calling {obj_cls.__name__}.get_dataframe with {base_kwargs} (no date)")
         df = fn(**base_kwargs)
         recs = _to_records(df)
+        print(f"Returned rows (no date): {len(recs)}")
         if the_date:
             recs = _filter_by_date(recs, the_date)
+            print(f"Rows after Python-side date filter: {len(recs)}")
         if recs:
             return _ensure_group_keys(recs)
-    except Exception:
-        pass
-
-    # 3) If still nothing and a date was provided, return the wide slice (better than empty)
-    if the_date:
-        try:
-            df = fn(**base_kwargs)
-            recs = _to_records(df)
-            return _ensure_group_keys(recs)
-        except Exception:
-            return []
+    except Exception as e:
+        print(f"Error call {obj_cls.__name__} wide slice: {e}")
 
     return []
 
@@ -196,9 +179,11 @@ class DQReports:
         out: List[_ReportRow] = []
         for name, getter in sections:
             rows = getter(report_date=report_date, limit=limit)
+            print(f"Section {name}: {len(rows)} rows")
             if rows:
                 for r in rows:
                     if "report_type" not in r:
                         r["report_type"] = name
                 out.extend(rows)
+        print(f"Combined total rows: {len(out)}")
         return out
