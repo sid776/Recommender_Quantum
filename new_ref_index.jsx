@@ -102,7 +102,6 @@ export default function CosmosReports() {
       const data = Array.isArray(json) ? json : Array.isArray(json?.rows) ? json.rows : [];
       setRows(data || []);
 
-      // seed latest date into the date field if empty
       if ((!dateStr || !dateStr.length) && data?.length) {
         const raw = data[0]?.report_date ?? "";
         let normalized = "";
@@ -150,7 +149,6 @@ export default function CosmosReports() {
       <FormProvider {...methods}>
         <form className="flex flex-col gap-3">
           <div className="p-4 bg-white shadow-md rounded-lg" style={{ marginTop: -16 }}>
-            {/* Top bar */}
             <div className="flex items-center justify-between">
               <div className="text-lg font-bold">DQ Reports</div>
               <div className="flex items-center gap-4">
@@ -159,14 +157,15 @@ export default function CosmosReports() {
                   <div className="w-[220px]">
                     <InputFieldset
                       id="report_date"
-                      label=""   // remove (optional)
+                      label=""               // no "(optional)" label text
                       fieldName="report_date"
                       tooltipMsg="COB"
                       type="date"
+                      required               // remove optional hint
+                      registerOptions={{ required: "required" }}
                     />
                   </div>
                 </div>
-                {/* Green funnel icon */}
                 <i
                   title="Global Filter"
                   className="ph ph-funnel cursor-pointer text-green-700"
@@ -176,7 +175,6 @@ export default function CosmosReports() {
               </div>
             </div>
 
-            {/* Section header row */}
             <div className="mt-3 rounded-md">
               <div className="flex items-center justify-between px-3 py-2">
                 <div className="flex items-center gap-2">
