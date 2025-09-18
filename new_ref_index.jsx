@@ -9,6 +9,11 @@ import "ag-grid-enterprise";
 const API_ENDPOINT = "/api/dq/combined";
 const YEARS = ["2021", "2022", "2023", "2024", "2025"];
 
+// --- visual knobs for COB ---
+const COB_WIDTH = 260;       // px: widen the input
+const COB_INPUT_HEIGHT = 38; // px: make the input taller
+const COB_TOP_OFFSET = 8;    // px: push COB block down from the top
+
 const prettify = (k) => k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 const isNilOrEmpty = (v) => v === null || v === undefined || v === "";
 
@@ -136,7 +141,6 @@ export default function CosmosReports() {
     const api = gridRef.current?.api;
     const columnApi = gridRef.current?.columnApi;
     if (!api || !columnApi) return;
-
     const ids = [];
     columnApi.getColumns()?.forEach((c) => ids.push(c.getColId()));
     columnApi.autoSizeColumns(ids, true);
@@ -146,6 +150,13 @@ export default function CosmosReports() {
 
   return (
     <Box className="overflow-auto" height="calc(100vh - 70px)">
+      {/* COB-specific CSS override */}
+      <style>{`
+        #cosmos-cob { width: ${COB_WIDTH}px; margin-top: ${COB_TOP_OFFSET}px; }
+        #cosmos-cob fieldset { margin: 0; }
+        #cosmos-cob input { height: ${COB_INPUT_HEIGHT}px; line-height: ${COB_INPUT_HEIGHT}px; padding: 0 12px; font-weight: 600; }
+      `}</style>
+
       <FormProvider {...methods}>
         <form className="flex flex-col gap-3">
           <div className="p-4 bg-white shadow-md rounded-lg" style={{ marginTop: -16 }}>
@@ -154,22 +165,22 @@ export default function CosmosReports() {
               <div className="flex items-center gap-4">
                 <div className="flex items-end gap-2">
                   <span className="text-xs font-semibold text-gray-600">COB:</span>
-                  <div className="w-[220px]">
+                  <div id="cosmos-cob">
                     <InputFieldset
                       id="report_date"
-                      label=""               // no "(optional)" label text
+                      label=""
                       fieldName="report_date"
                       tooltipMsg="COB"
                       type="date"
-                      required               // remove optional hint
+                      required
                       registerOptions={{ required: "required" }}
                     />
                   </div>
                 </div>
                 <i
                   title="Global Filter"
-                  className="ph ph-funnel cursor-pointer text-green-700"
-                  style={{ fontSize: 26 }}
+                  className="ph ph-funnel cursor-pointer"
+                  style={{ fontSize: 28, color: "#0f5c2e" }}
                   onClick={() => setShowFloatingFilters((v) => !v)}
                 />
               </div>
@@ -194,8 +205,8 @@ export default function CosmosReports() {
                     height: "calc(100vh - 240px)",
                     width: "100%",
                     border: "none",
-                    ["--ag-borders"]: "none",
-                    ["--ag-border-color"]: "transparent",
+                    ["--ag-borders"]:"none",
+                    ["--ag-border-color"]:"transparent",
                   }}
                 >
                   <AgGridReact
