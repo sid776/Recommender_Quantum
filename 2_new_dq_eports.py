@@ -4,7 +4,12 @@ import inspect
 
 _ReportRow = Dict[str, Any]
 
-_DATE_KWS = ("report_date", "cob_date", "cob_dt", "as_of_date", "as_of_dt", "cob", "date")
+_DATE_KWS = (
+    "report_date", "report_dt",
+    "cob_date", "cob_dt",
+    "as_of_date", "as_of_dt",
+    "cob", "date"
+)
 
 def _print_source(obj_cls: type) -> None:
     schema = getattr(obj_cls, "TABLE_SCHEMA", "?")
@@ -35,12 +40,12 @@ def _parse_dt(v: Any) -> Optional[date]:
         return v.date()
     if isinstance(v, str):
         s = v.strip()
-        if len(s) == 10 and s[4] == "-" and s[7] == "-":  # YYYY-MM-DD
+        if len(s) == 10 and s[4] == "-" and s[7] == "-":
             try:
                 return date(int(s[0:4]), int(s[5:7]), int(s[8:10]))
             except Exception:
                 return None
-        if len(s) == 8 and s.isdigit():  # YYYYMMDD
+        if len(s) == 8 and s.isdigit():
             try:
                 return date(int(s[0:4]), int(s[4:6]), int(s[6:8]))
             except Exception:
@@ -48,7 +53,7 @@ def _parse_dt(v: Any) -> Optional[date]:
     return None
 
 def _row_date(r: _ReportRow) -> Optional[date]:
-    for k in ("report_date", "as_of_date", "as_of_dt", "cob_date", "cob_dt", "cob", "date"):
+    for k in ("report_date","report_dt","as_of_date","as_of_dt","cob_date","cob_dt","cob","date"):
         if k in r:
             d = _parse_dt(r.get(k))
             if d:
@@ -74,58 +79,58 @@ def _ensure_group_keys(rows: List[_ReportRow]) -> List[_ReportRow]:
         out.append(r)
     return out
 
+def _date_variants(d: date) -> List[Any]:
+    # try both date object and strings commonly accepted by object layer
+    return [
+        d,
+        d.isoformat(),                      # YYYY-MM-DD
+        f"{d.year:04d}{d.month:02d}{d.day:02d}",  # YYYYMMDD
+    ]
+
 def _call_get_dataframe(obj_cls: type, the_date: Optional[date], limit: int) -> List[_ReportRow]:
-    """
-    Strategy:
-      1) Try the object with the proper date kw (if supported) + large limit + sample=False + order desc (when supported)
-      2) If empty, try without date kw with large limit, then filter rows by date (python side)
-      3) If still empty and a date was requested, return the non-filtered wide slice (so you still see data)
-    """
     _print_source(obj_cls)
 
     fn = getattr(obj_cls, "get_dataframe", None)
     if not callable(fn):
         return []
 
-    # Build common kwargs this object may support
     base_kwargs: Dict[str, Any] = {}
     if _supports_kw(obj_cls, "pyspark"):
         base_kwargs["pyspark"] = False
     if _supports_kw(obj_cls, "sample"):
         base_kwargs["sample"] = False
+    # push a high limit (many object layers default to 10)
+    max_rows = max(limit, 5000)
     if _supports_kw(obj_cls, "limit"):
-        base_kwargs["limit"] = max(limit, 5000)  # push high to avoid trims at 10
-    else:
-        # some object layers use 'top' or 'rows' – try best-effort
-        if _supports_kw(obj_cls, "top"):
-            base_kwargs["top"] = max(limit, 5000)
-        elif _supports_kw(obj_cls, "rows"):
-            base_kwargs["rows"] = max(limit, 5000)
-
-    # Prefer ordering newest first if supported
+        base_kwargs["limit"] = max_rows
+    elif _supports_kw(obj_cls, "top"):
+        base_kwargs["top"] = max_rows
+    elif _supports_kw(obj_cls, "rows"):
+        base_kwargs["rows"] = max_rows
     if _supports_kw(obj_cls, "order"):
-        # use common patterns this codebase uses (xxx__desc)
         base_kwargs["order"] = [
             "report_date__desc".upper(),
+            "report_dt__desc".upper(),
             "as_of_date__desc".upper(),
             "as_of_dt__desc".upper(),
             "cob_date__desc".upper(),
             "cob_dt__desc".upper(),
         ]
 
-    # 1) Try with a date kwarg if provided and supported
+    # 1) Try passing a date kw if supported, in multiple formats
     if the_date:
         for dk in _DATE_KWS:
             if _supports_kw(obj_cls, dk):
-                try:
-                    df = fn(**{**base_kwargs, dk: the_date})
-                    recs = _to_records(df)
-                    if recs:
-                        return _ensure_group_keys(recs)
-                except Exception:
-                    pass  # try the next kw or next strategy
+                for dv in _date_variants(the_date):
+                    try:
+                        df = fn(**{**base_kwargs, dk: dv})
+                        recs = _to_records(df)
+                        if recs:
+                            return _ensure_group_keys(recs)
+                    except Exception:
+                        continue
 
-    # 2) No-date call, wide slice; then python-filter to the date if given
+    # 2) No-date wide slice, then filter by day on Python side
     try:
         df = fn(**base_kwargs)
         recs = _to_records(df)
@@ -136,7 +141,7 @@ def _call_get_dataframe(obj_cls: type, the_date: Optional[date], limit: int) -> 
     except Exception:
         pass
 
-    # 3) If still nothing and a date was requested, return the non-filtered wide slice (better than empty)
+    # 3) If still nothing and a date was provided, return the wide slice (better than empty)
     if the_date:
         try:
             df = fn(**base_kwargs)
