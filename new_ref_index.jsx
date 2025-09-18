@@ -9,10 +9,12 @@ import "ag-grid-enterprise";
 const API_ENDPOINT = "/api/dq/combined";
 const YEARS = ["2021", "2022", "2023", "2024", "2025"];
 
-// --- visual knobs for COB ---
-const COB_WIDTH = 260;       // px: widen the input
-const COB_INPUT_HEIGHT = 38; // px: make the input taller
-const COB_TOP_OFFSET = 8;    // px: push COB block down from the top
+// visual knobs
+const COB_WIDTH = 260;         // px
+const COB_INPUT_HEIGHT = 38;   // px
+const COB_TOP_OFFSET = 8;      // px
+const COB_LABEL_SIZE = 16;     // px  <- make “COB:” bigger/smaller
+const COB_GAP = 8;             // px  <- spacing between COB: and input
 
 const prettify = (k) => k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 const isNilOrEmpty = (v) => v === null || v === undefined || v === "";
@@ -150,7 +152,7 @@ export default function CosmosReports() {
 
   return (
     <Box className="overflow-auto" height="calc(100vh - 70px)">
-      {/* COB-specific CSS override */}
+      {/* COB sizing/alignment overrides */}
       <style>{`
         #cosmos-cob { width: ${COB_WIDTH}px; margin-top: ${COB_TOP_OFFSET}px; }
         #cosmos-cob fieldset { margin: 0; }
@@ -162,13 +164,24 @@ export default function CosmosReports() {
           <div className="p-4 bg-white shadow-md rounded-lg" style={{ marginTop: -16 }}>
             <div className="flex items-center justify-between">
               <div className="text-lg font-bold">DQ Reports</div>
+
+              {/* RIGHT SIDE: COB and Global Filter */}
               <div className="flex items-center gap-4">
-                <div className="flex items-end gap-2">
-                  <span className="text-xs font-semibold text-gray-600">COB:</span>
+                {/* Make label and input share the same baseline */}
+                <div className="flex items-center" style={{ gap: COB_GAP }}>
+                  <span
+                    style={{
+                      fontSize: COB_LABEL_SIZE,
+                      fontWeight: 700,
+                      lineHeight: `${COB_INPUT_HEIGHT}px`,
+                    }}
+                  >
+                    COB:
+                  </span>
                   <div id="cosmos-cob">
                     <InputFieldset
                       id="report_date"
-                      label=""
+                      label=""          // keep empty (no “optional”)
                       fieldName="report_date"
                       tooltipMsg="COB"
                       type="date"
@@ -177,6 +190,7 @@ export default function CosmosReports() {
                     />
                   </div>
                 </div>
+
                 <i
                   title="Global Filter"
                   className="ph ph-funnel cursor-pointer"
@@ -205,8 +219,8 @@ export default function CosmosReports() {
                     height: "calc(100vh - 240px)",
                     width: "100%",
                     border: "none",
-                    ["--ag-borders"]:"none",
-                    ["--ag-border-color"]:"transparent",
+                    ["--ag-borders"]: "none",
+                    ["--ag-border-color"]: "transparent",
                   }}
                 >
                   <AgGridReact
