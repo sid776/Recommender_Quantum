@@ -170,4 +170,31 @@ class DQReports:
     @staticmethod
     def get_reasonability(report_date: Optional[date] = None, limit: int = 500) -> List[_ReportRow]:
         from objects.dq.reasonability import DQReasonability
-        rd =
+        rd = DQReports._ensure_report_date(report_date)
+        return _call_object_get_dataframe(DQReasonability, rd, limit)
+
+    @staticmethod
+    def get_schema(report_date: Optional[date] = None, limit: int = 500) -> List[_ReportRow]:
+        from objects.dq.schema import DQSchema
+        rd = DQReports._ensure_report_date(report_date)
+        return _call_object_get_dataframe(DQSchema, rd, limit)
+
+    @staticmethod
+    def get_all(report_date: Optional[date] = None, limit: int = 500) -> List[_ReportRow]:
+        rd = DQReports._ensure_report_date(report_date)
+        sections: List[Tuple[str, Any]] = [
+            ("summary",       DQReports.get_summary),
+            ("staleness",     DQReports.get_staleness),
+            ("outliers",      DQReports.get_outliers),
+            ("availability",  DQReports.get_availability),
+            ("reasonability", DQReports.get_reasonability),
+            ("schema",        DQReports.get_schema),
+        ]
+        out: List[_ReportRow] = []
+        for name, getter in sections:
+            rows = getter(report_date=rd, limit=limit)
+            if rows:
+                for r in rows:
+                    r.setdefault("report_type", name)
+                out.extend(rows)
+        return out
