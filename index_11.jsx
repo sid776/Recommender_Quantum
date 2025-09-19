@@ -17,7 +17,7 @@ const DETAIL_FIELDS = [
   { header: "Risk Factor Value", keys: ["risk_factor_value", "risk factor value", "rf_value", "value"] },
   { header: "Mean Value", keys: ["mean_value", "mean value", "mean"] },
   { header: "Z Score", keys: ["z score", "z_score", "zscore"] },
-  { header: "Std Value", keys: ["std value", "std_value", "std"] },
+  { header: "Std Value", keys: ["std value", "std_value", "std", "stddev", "std_dev"] },
   { header: "Is Outlier", keys: ["is outlier", "is_outlier", "outlier"] },
 ];
 
@@ -30,11 +30,24 @@ function pickKey(row, candidates) {
   return null;
 }
 
+function findKeyInRows(rows, candidates) {
+  if (!rows?.length) return null;
+  for (const r of rows) {
+    const k = pickKey(r, candidates);
+    if (k) return k;
+  }
+  return null;
+}
+
 function getYearKeys(rows) {
   if (!rows?.length) return ["2021", "2022", "2023", "2024", "2025"];
-  const years = Object.keys(rows[0] || {})
-    .filter((k) => /^\d{4}$/.test(k) && Number(k) >= MIN_YEAR)
-    .sort();
+  const years = Array.from(
+    new Set(
+      rows.flatMap((r) =>
+        Object.keys(r || {}).filter((k) => /^\d{4}$/.test(k) && Number(k) >= MIN_YEAR)
+      )
+    )
+  ).sort();
   return years.length ? years : ["2021", "2022", "2023", "2024", "2025"];
 }
 
@@ -50,16 +63,21 @@ function normalizeRows(rows, YEARS) {
     const reportDate = o.report_date || "";
     const dateKeys = ["as_of_date", "as_of_dt", "asofdate", "asof_dt"];
     const dk = pickKey(o, dateKeys);
-    if (dk && (o[dk] === null || o[dk] === undefined || o[dk] === "")) {
+    if (dk && isNilOrEmpty(o[dk])) {
       o[dk] = reportDate || "—";
     }
 
-    const numericNames = ["mean_value", "mean value", "mean", "z score", "z_score", "zscore", "std value", "std_value", "std"];
+    const numericNames = [
+      "mean_value","mean value","mean",
+      "z score","z_score","zscore",
+      "std value","std_value","std","stddev","std_dev",
+      "risk_factor_value","rf_value","value",
+    ];
     for (const nm of numericNames) {
       const k = pickKey(o, [nm]);
       if (k) {
         const n = Number(o[k]);
-        o[k] = Number.isFinite(n) ? n : 0;
+        o[k] = Number.isFinite(n) ? n : (o[k] == null ? 0 : o[k]);
       }
     }
 
@@ -79,30 +97,38 @@ function normalizeRows(rows, YEARS) {
 function buildColumnDefs(rows, YEARS) {
   const base = ["report_date", "risk_factor_id", "rule_type", "book"];
 
-  const sample = rows?.[0] || {};
   const detailMap = DETAIL_FIELDS.map((df) => {
-    const k = pickKey(sample, df.keys);
+    const k = findKeyInRows(rows, df.keys);
     return { header: df.header, key: k };
   }).filter((d) => !!d.key);
 
   const ordered = [...base, ...YEARS, ...detailMap.map((d) => d.key)];
   const seen = new Set(ordered);
 
-  // IMPORTANT: drop any 4-digit year < MIN_YEAR from extras
-  const extras = rows?.length
-    ? Object.keys(rows[0]).filter((k) => {
-        if (seen.has(k)) return false;
-        if (/^\d{4}$/.test(k) && Number(k) < MIN_YEAR) return false; // <- filters 2007..2020
-        return true;
-      })
+  const allRowKeys = rows?.length
+    ? Array.from(new Set(rows.flatMap((r) => Object.keys(r || {}))))
     : [];
+
+  const extras = allRowKeys.filter((k) => {
+    if (seen.has(k)) return false;
+    if (/^\d{4}$/.test(k) && Number(k) < MIN_YEAR) return false;
+    return true;
+  });
 
   const allKeys = [...ordered, ...extras];
 
   return allKeys.map((k) => {
     const isYear = YEARS.includes(k);
-    const isDetail = detailMap.some((d) => d.key === k);
-    const headerName = isDetail ? detailMap.find((d) => d.key === k)?.header || prettify(k) : prettify(k);
+    const detail = detailMap.find((d) => d.key === k);
+    const isDetail = !!detail;
+    const headerName = isDetail ? detail.header : prettify(k);
+
+    const isLikelyNumber =
+      isYear ||
+      ["z score", "std value", "mean value", "risk factor value"].includes(lc(headerName)) ||
+      /^\d{4}$/.test(k);
+
+    const isLikelyDate = lc(headerName).includes("date") || lc(k).endsWith("_dt");
 
     const col = {
       headerName,
@@ -111,15 +137,8 @@ function buildColumnDefs(rows, YEARS) {
       resizable: true,
       headerTooltip: headerName,
       suppressHeaderMenuButton: false,
-      filter:
-        isYear ||
-        ["z score", "std value", "mean value"].includes(lc(headerName)) ||
-        /^\d{4}$/.test(k)
-          ? "agNumberColumnFilter"
-          : lc(headerName).includes("date")
-          ? "agDateColumnFilter"
-          : "agTextColumnFilter",
-      minWidth: isYear ? 110 : 170,
+      filter: isLikelyNumber ? "agNumberColumnFilter" : isLikelyDate ? "agDateColumnFilter" : "agTextColumnFilter",
+      minWidth: isYear ? 110 : 160,
     };
 
     if (k === "rule_type" || k === "book") {
@@ -153,7 +172,6 @@ export default function CosmosReports() {
 
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [showFloatingFilters, setShowFloatingFilters] = useState(false);
 
   const gridRef = useRef(null);
   const fetchedOnce = useRef(false);
@@ -194,6 +212,15 @@ export default function CosmosReports() {
       }
     } finally {
       setLoading(false);
+      requestAnimationFrame(() => {
+        const api = gridRef.current?.api;
+        const columnApi = gridRef.current?.columnApi;
+        if (!api || !columnApi) return;
+        const ids = [];
+        columnApi.getColumns()?.forEach((c) => ids.push(c.getColId()));
+        columnApi.autoSizeColumns(ids, true);
+        api.setGridOption("suppressAggFuncInHeader", true);
+      });
     }
   }
 
@@ -213,12 +240,20 @@ export default function CosmosReports() {
     const api = gridRef.current?.api;
     const columnApi = gridRef.current?.columnApi;
     if (!api || !columnApi) return;
-
     const ids = [];
     columnApi.getColumns()?.forEach((c) => ids.push(c.getColId()));
     columnApi.autoSizeColumns(ids, true);
     api.sizeColumnsToFit({ defaultMinWidth: 110 });
     api.setGridOption("suppressAggFuncInHeader", true);
+  };
+
+  // NEW: toggle Columns/Filters sidebar
+  const toggleSideBar = () => {
+    const api = gridRef.current?.api;
+    if (!api) return;
+    const visible = api.isSideBarVisible();
+    api.setSideBarVisible(!visible);
+    if (!visible) api.openToolPanel("filters");
   };
 
   return (
@@ -243,11 +278,12 @@ export default function CosmosReports() {
                     />
                   </div>
                 </div>
+                {/* Funnel button to open/close side panel */}
                 <i
-                  title="Global Filter"
+                  title="Columns & Filters"
                   className="ph ph-funnel cursor-pointer text-green-700"
                   style={{ fontSize: 28 }}
-                  onClick={() => setShowFloatingFilters((v) => !v)}
+                  onClick={toggleSideBar}
                 />
               </div>
             </div>
@@ -275,7 +311,7 @@ export default function CosmosReports() {
                   enableRowGroup: true,
                   enablePivot: true,
                   enableCharts: true,
-                  floatingFilter: showFloatingFilters,
+                  floatingFilter: false,
                 }}
                 autoGroupColumnDef={{
                   headerName: "Group",
@@ -283,13 +319,38 @@ export default function CosmosReports() {
                   pinned: "left",
                 }}
                 headerHeight={42}
-                floatingFiltersHeight={36}
                 loading={loading}
-                animateRows={true}
-                enableRangeSelection={true}
-                suppressAggFuncInHeader={true}
+                animateRows
+                enableRangeSelection
+                suppressAggFuncInHeader
                 onFirstDataRendered={onFirstDataRendered}
                 suppressHorizontalScroll={false}
+                onGridReady={(params) => {
+                  // Ensure sidebar exists and starts open on Filters
+                  params.api.setSideBarVisible(true);
+                  params.api.openToolPanel("filters");
+                }}
+                /* NEW: Side bar on the right with Columns & Filters */
+                sideBar={{
+                  position: "right",
+                  hiddenByDefault: false,
+                  defaultToolPanel: "filters",
+                  toolPanels: [
+                    {
+                      id: "columns",
+                      labelDefault: "Columns",
+                      iconKey: "columns",
+                      toolPanel: "agColumnsToolPanel",
+                      // leave the built-in search as-is
+                    },
+                    {
+                      id: "filters",
+                      labelDefault: "Filters",
+                      iconKey: "filter",
+                      toolPanel: "agFiltersToolPanel",
+                    },
+                  ],
+                }}
               />
             </Box>
           </div>
