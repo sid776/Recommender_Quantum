@@ -1,0 +1,18 @@
+npm ls @chakra-ui/react @emotion/react @emotion/styled framer-motion
+
+############
+rm -rf node_modules package-lock.json
+
+#########################
+npm install -E \
+  @chakra-ui/react@2.8.2 \
+  @chakra-ui/icons@2.1.1 \
+  @emotion/react@11.11.1 \
+  @emotion/styled@11.11.0 \
+  framer-motion@10.17.0
+
+##############################
+rm -rf node_modules/.vite .vite -- purge .vite pre-bundled cache
+################################
+npm run dev
+
