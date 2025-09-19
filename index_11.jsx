@@ -247,13 +247,11 @@ export default function CosmosReports() {
     api.setGridOption("suppressAggFuncInHeader", true);
   };
 
-  // NEW: toggle Columns/Filters sidebar
   const toggleSideBar = () => {
     const api = gridRef.current?.api;
     if (!api) return;
     const visible = api.isSideBarVisible();
     api.setSideBarVisible(!visible);
-    if (!visible) api.openToolPanel("filters");
   };
 
   return (
@@ -278,7 +276,6 @@ export default function CosmosReports() {
                     />
                   </div>
                 </div>
-                {/* Funnel button to open/close side panel */}
                 <i
                   title="Columns & Filters"
                   className="ph ph-funnel cursor-pointer text-green-700"
@@ -325,23 +322,16 @@ export default function CosmosReports() {
                 suppressAggFuncInHeader
                 onFirstDataRendered={onFirstDataRendered}
                 suppressHorizontalScroll={false}
-                onGridReady={(params) => {
-                  // Ensure sidebar exists and starts open on Filters
-                  params.api.setSideBarVisible(true);
-                  params.api.openToolPanel("filters");
-                }}
-                /* NEW: Side bar on the right with Columns & Filters */
+                /* Sidebar config */
                 sideBar={{
                   position: "right",
-                  hiddenByDefault: false,
-                  defaultToolPanel: "filters",
+                  hiddenByDefault: true, // <-- sidebar is available but closed initially
                   toolPanels: [
                     {
                       id: "columns",
                       labelDefault: "Columns",
                       iconKey: "columns",
                       toolPanel: "agColumnsToolPanel",
-                      // leave the built-in search as-is
                     },
                     {
                       id: "filters",
