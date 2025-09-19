@@ -317,7 +317,6 @@ export default function CosmosReports() {
                     />
                   </div>
                 </div>
-                {/* funnel toggles side panel */}
                 <i
                   title="Columns & Filters"
                   className="ph ph-funnel cursor-pointer text-green-700"
@@ -375,14 +374,12 @@ export default function CosmosReports() {
                     {
                       id: "columns",
                       labelDefault: "Columns",
-                      labelKey: "columns",
                       iconKey: "columns",
                       toolPanel: "agColumnsToolPanel",
                     },
                     {
                       id: "filters",
                       labelDefault: "Filters",
-                      labelKey: "filters",
                       iconKey: "filter",
                       toolPanel: "agFiltersToolPanel",
                     },
