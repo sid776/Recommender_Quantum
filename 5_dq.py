@@ -2,9 +2,21 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 from datetime import date, datetime
 import inspect
 import re
+import os
 
 _ReportRow = Dict[str, Any]
 _DateKw = ("report_date", "cob_date", "as_of_date", "as_of_dt", "asof_date", "asof_dt", "cob")
+
+FALLBACK_CATALOG = "niwa_dev"
+FALLBACK_SCHEMA  = "gold"
+VIEW_MAP = {
+    "summary":       "vw_smbc_marx_validation_summary_report",
+    "staleness":     "vw_smbc_marx_validation_staleness_report",
+    "outliers":      "vw_smbc_marx_validation_outlier_report",
+    "availability":  "vw_smbc_marx_validation_availability_report",
+    "reasonability": "vw_smbc_marx_validation_reasonability_report",
+    "schema":        "vw_smbc_marx_validation_schema_report",
+}
 
 _iso_like = re.compile(r"^\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+\-]\d{2}:\d{2})?)?$")
 
@@ -171,48 +183,123 @@ def _resolve_latest_report_date_via_objects() -> Optional[date]:
     dates = [d for d in (_row_date(r) for r in rows) if d is not None]
     return max(dates) if dates else None
 
+def _norm_date_str(d: Union[str, date, datetime]) -> str:
+    if isinstance(d, (date, datetime)):
+        dd = d if isinstance(d, date) and not isinstance(d, datetime) else d.date()
+        return dd.strftime("%Y-%m-%d")
+    s = _sstrip(str(d))
+    if len(s) == 8 and s.isdigit():
+        return f"{s[0:4]}-{s[4:6]}-{s[6:8]}"
+    return s
+
+def _sql_latest_report_date() -> Optional[date]:
+    try:
+        from core.db import DBConnection
+    except Exception:
+        return None
+    fqn = lambda v: f"{FALLBACK_CATALOG}.{FALLBACK_SCHEMA}.{v}"
+    parts = []
+    for v in VIEW_MAP.values():
+        parts.append(f"SELECT MAX(to_date(CAST(report_date AS STRING))) AS d FROM {fqn(v)}")
+        parts.append(f"SELECT MAX(to_date(regexp_replace(CAST(report_date AS STRING), '-', ''), 'yyyyMMdd')) AS d FROM {fqn(v)}")
+    union_sql = " UNION ALL ".join(parts)
+    sql = f"SELECT MAX(d) AS max_d FROM ({union_sql}) t"
+    try:
+        with DBConnection() as db:
+            df = db.execute(sql, df=True)
+        if df is None or df.empty:
+            return None
+        val = df.iloc[0, 0]
+        if isinstance(val, (date, datetime)):
+            return val if isinstance(val, date) and not isinstance(val, datetime) else val.date()
+        return _parse_dt(val)
+    except Exception:
+        return None
+
+def _fallback_sql(view_key: str, report_date: Optional[date], limit: int) -> List[_ReportRow]:
+    if os.getenv("USE_DQREPORTS_SQL_FALLBACK", "1") not in ("1", "true", "True"):
+        return []
+    try:
+        from core.db import DBConnection
+    except Exception:
+        return []
+    view = VIEW_MAP[view_key]
+    fqn = f"{FALLBACK_CATALOG}.{FALLBACK_SCHEMA}.{view}"
+    where = ""
+    if report_date:
+        ymd_dash = _norm_date_str(report_date)
+        ymd = ymd_dash.replace("-", "")
+        where = (
+            " WHERE ("
+            f"to_date(CAST(report_date AS STRING)) = date'{ymd_dash}' "
+            f"OR to_date(regexp_replace(CAST(report_date AS STRING), '-', ''), 'yyyyMMdd') = date'{ymd_dash}' "
+            f"OR CAST(report_date AS STRING) = '{ymd}'"
+            ")"
+        )
+    sql = f"SELECT * FROM {fqn}{where} ORDER BY report_date DESC LIMIT {int(limit)}"
+    try:
+        with DBConnection() as db:
+            df = db.execute(sql, df=True)
+        return _to_records(df)
+    except Exception:
+        return []
+
+def _fetch_section(name: str, obj_cls: type, report_date: Optional[date], limit: int) -> List[_ReportRow]:
+    rows = _call_object_get_dataframe(obj_cls, report_date, limit)
+    if rows:
+        for r in rows:
+            r.setdefault("report_type", name)
+        return rows
+    fb = _fallback_sql(name, report_date, limit)
+    for r in fb:
+        r.setdefault("report_type", name)
+    return fb
+
 class DQReports:
     @staticmethod
     def _ensure_report_date(report_date: Optional[date]) -> Optional[date]:
         if report_date:
             return report_date
+        rd = _sql_latest_report_date()
+        if rd:
+            return rd
         return _resolve_latest_report_date_via_objects()
 
     @staticmethod
     def get_summary(report_date: Optional[date] = None, limit: int = 500) -> List[_ReportRow]:
         from objects.dq.summary import DQSummary
         rd = DQReports._ensure_report_date(report_date)
-        return _call_object_get_dataframe(DQSummary, rd, limit)
+        return _fetch_section("summary", DQSummary, rd, limit)
 
     @staticmethod
     def get_staleness(report_date: Optional[date] = None, limit: int = 500) -> List[_ReportRow]:
         from objects.dq.staleness import DQStaleness
         rd = DQReports._ensure_report_date(report_date)
-        return _call_object_get_dataframe(DQStaleness, rd, limit)
+        return _fetch_section("staleness", DQStaleness, rd, limit)
 
     @staticmethod
     def get_outliers(report_date: Optional[date] = None, limit: int = 500) -> List[_ReportRow]:
         from objects.dq.outliers import DQOutliers
         rd = DQReports._ensure_report_date(report_date)
-        return _call_object_get_dataframe(DQOutliers, rd, limit)
+        return _fetch_section("outliers", DQOutliers, rd, limit)
 
     @staticmethod
     def get_availability(report_date: Optional[date] = None, limit: int = 500) -> List[_ReportRow]:
         from objects.dq.availability import DQAvailability
         rd = DQReports._ensure_report_date(report_date)
-        return _call_object_get_dataframe(DQAvailability, rd, limit)
+        return _fetch_section("availability", DQAvailability, rd, limit)
 
     @staticmethod
     def get_reasonability(report_date: Optional[date] = None, limit: int = 500) -> List[_ReportRow]:
         from objects.dq.reasonability import DQReasonability
         rd = DQReports._ensure_report_date(report_date)
-        return _call_object_get_dataframe(DQReasonability, rd, limit)
+        return _fetch_section("reasonability", DQReasonability, rd, limit)
 
     @staticmethod
     def get_schema(report_date: Optional[date] = None, limit: int = 500) -> List[_ReportRow]:
         from objects.dq.schema import DQSchema
         rd = DQReports._ensure_report_date(report_date)
-        return _call_object_get_dataframe(DQSchema, rd, limit)
+        return _fetch_section("schema", DQSchema, rd, limit)
 
     @staticmethod
     def get_all(report_date: Optional[date] = None, limit: int = 500) -> List[_ReportRow]:
