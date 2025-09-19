@@ -1,0 +1,123 @@
+# dq_reports.py
+from typing import Any, Dict, List, Optional
+from datetime import date
+import pandas as pd
+
+from core.db import DBConnection
+
+CATALOG = "niwa_dev.gold"
+
+VIEW_BY_REPORT = {
+    "summary":       f"{CATALOG}.vw_smbc_marx_validation_summary_report",
+    "staleness":     f"{CATALOG}.vw_smbc_marx_validation_staleness_report",
+    "outliers":      f"{CATALOG}.vw_smbc_marx_validation_outlier_report",
+    "availability":  f"{CATALOG}.vw_smbc_marx_validation_availability_report",
+    "reasonability": f"{CATALOG}.vw_smbc_marx_validation_reasonability_report",
+    "schema":        f"{CATALOG}.vw_smbc_marx_validation_schema_report",
+}
+
+GROUP_COLS = ["rule_type", "book"]
+
+
+class DQReports:
+    @staticmethod
+    def _sql(view: str, report_date: Optional[date], limit: int) -> str:
+        if report_date:
+            d = report_date.strftime("%Y-%m-%d")
+            return f"""
+                SELECT *
+                FROM {view}
+                WHERE
+                    COALESCE(
+                        CAST(report_date AS DATE),
+                        TO_DATE(CAST(report_date AS STRING), 'yyyyMMdd'),
+                        TO_DATE(CAST(report_date AS STRING), 'yyyy-MM-dd')
+                    ) = TO_DATE('{d}')
+                ORDER BY
+                    COALESCE(
+                        CAST(report_date AS DATE),
+                        TO_DATE(CAST(report_date AS STRING), 'yyyyMMdd'),
+                        TO_DATE(CAST(report_date AS STRING), 'yyyy-MM-dd')
+                    ) DESC
+                LIMIT {limit}
+            """
+        else:
+            return f"""
+                SELECT *
+                FROM {view}
+                ORDER BY
+                    COALESCE(
+                        CAST(report_date AS DATE),
+                        TO_DATE(CAST(report_date AS STRING), 'yyyyMMdd'),
+                        TO_DATE(CAST(report_date AS STRING), 'yyyy-MM-dd')
+                    ) DESC
+                LIMIT {limit}
+            """
+
+    @staticmethod
+    def _normalize(df: pd.DataFrame) -> pd.DataFrame:
+        renames: Dict[str, str] = {}
+        if "table" in df.columns and "table_name" not in df.columns:
+            renames["table"] = "table_name"
+        if renames:
+            df = df.rename(columns=renames)
+        for c in GROUP_COLS:
+            if c not in df.columns:
+                df[c] = None
+        return df
+
+    @staticmethod
+    def _fetch_section(key: str, obj_cls: Optional[type], report_date: Optional[date], limit: int):
+        # Try object model first
+        if obj_cls is not None:
+            try:
+                df = obj_cls.get_dataframe(report_date=report_date, limit=limit, pyspark=False)
+                if df is not None:
+                    recs = df.to_dict(orient="records")
+                    if recs:
+                        for r in recs:
+                            r.setdefault("report_type", key)
+                        return recs
+            except Exception:
+                pass  # fallback to SQL
+
+        # Fallback: SQL query
+        try:
+            with DBConnection() as db:
+                q = DQReports._sql(VIEW_BY_REPORT[key], report_date, limit)
+                df = db.execute(q, df=True)
+                if df is None or df.empty:
+                    return []
+                df = DQReports._normalize(df)
+                df.insert(0, "report_type", key)
+                return df.to_dict(orient="records")
+        except Exception:
+            return []
+
+    @staticmethod
+    def get_all(report_date: Optional[date] = None, limit: int = 500) -> List[Dict[str, Any]]:
+        frames: List[Dict[str, Any]] = []
+
+        # Import object classes only here (so they’re optional and won’t break fallback)
+        from objects.dq.summary import DQSummary
+        from objects.dq.staleness import DQStaleness
+        from objects.dq.outliers import DQOutliers
+        from objects.dq.availability import DQAvailability
+        from objects.dq.reasonability import DQReasonability
+        from objects.dq.schema import DQSchema
+
+        sections = {
+            "summary": DQSummary,
+            "staleness": DQStaleness,
+            "outliers": DQOutliers,
+            "availability": DQAvailability,
+            "reasonability": DQReasonability,
+            "schema": DQSchema,
+        }
+
+        for key, obj_cls in sections.items():
+            rows = DQReports._fetch_section(key, obj_cls, report_date, limit)
+            if rows:
+                frames.extend(rows)
+
+        return frames
