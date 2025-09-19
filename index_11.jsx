@@ -63,9 +63,7 @@ function normalizeRows(rows, YEARS) {
     const reportDate = o.report_date || "";
     const dateKeys = ["as_of_date", "as_of_dt", "asofdate", "asof_dt"];
     const dk = pickKey(o, dateKeys);
-    if (dk && isNilOrEmpty(o[dk])) {
-      o[dk] = reportDate || "—";
-    }
+    if (dk && isNilOrEmpty(o[dk])) o[dk] = reportDate || "—";
 
     const numericNames = [
       "mean_value","mean value","mean",
@@ -247,11 +245,22 @@ export default function CosmosReports() {
     api.setGridOption("suppressAggFuncInHeader", true);
   };
 
-  const toggleSideBar = () => {
+  // keep sidebar visible (buttons showing) but no panel open initially
+  const onGridReady = (params) => {
+    params.api.setSideBarVisible(true);  // shows the buttons
+    params.api.closeToolPanel();         // no panel open by default
+  };
+
+  // funnel toggles the panel: if closed, open Filters; if open, close it
+  const onFunnelClick = () => {
     const api = gridRef.current?.api;
     if (!api) return;
-    const visible = api.isSideBarVisible();
-    api.setSideBarVisible(!visible);
+    const currentlyOpen = api.getOpenedToolPanel();
+    if (currentlyOpen) {
+      api.closeToolPanel();
+    } else {
+      api.openToolPanel("filters");
+    }
   };
 
   return (
@@ -280,7 +289,7 @@ export default function CosmosReports() {
                   title="Columns & Filters"
                   className="ph ph-funnel cursor-pointer text-green-700"
                   style={{ fontSize: 28 }}
-                  onClick={toggleSideBar}
+                  onClick={onFunnelClick}
                 />
               </div>
             </div>
@@ -322,10 +331,10 @@ export default function CosmosReports() {
                 suppressAggFuncInHeader
                 onFirstDataRendered={onFirstDataRendered}
                 suppressHorizontalScroll={false}
-                /* Sidebar config */
+                onGridReady={onGridReady}
                 sideBar={{
                   position: "right",
-                  hiddenByDefault: true, // <-- sidebar is available but closed initially
+                  hiddenByDefault: false, // buttons visible
                   toolPanels: [
                     {
                       id: "columns",
