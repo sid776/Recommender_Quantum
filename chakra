@@ -1,0 +1,15 @@
+npm ls @chakra-ui/react @emotion/react @emotion/styled framer-motion
+#########################
+Remove-Item -Recurse -Force node_modules -ErrorAction SilentlyContinue
+Remove-Item -Force package-lock.json -ErrorAction SilentlyContinue
+
+npm install -E `
+  @chakra-ui/react@2.8.2 `
+  @chakra-ui/icons@2.1.1 `
+  @emotion/react@11.11.4 `
+  @emotion/styled@11.11.0 `
+  framer-motion@10.17.0
+###########################
+
+Remove-Item -Recurse -Force node_modules\.vite -ErrorAction SilentlyContinue
+Remove-Item -Recurse -Force .vite -ErrorAction SilentlyContinue
