@@ -295,17 +295,19 @@ export default function CosmosReports() {
 
   return (
     <Box className="overflow-hidden" height="calc(100vh - 70px)">
-      {/* CSS safety net to hide the Columns tool panel search box across AG Grid versions */}
+      {/* Keep sidebar; remove only the Columns search box */}
       <style>{`
-        .ag-theme-alpine .ag-column-tool-panel .ag-column-select-filter,
-        .ag-theme-alpine .ag-column-select-header,
-        .ag-theme-alpine .ag-column-tool-panel .ag-input-wrapper,
-        .ag-theme-alpine .ag-column-tool-panel .ag-input-field,
-        .ag-theme-alpine .ag-column-tool-panel .ag-input-field-input[placeholder="Search..."] {
+        /* Hide search input inside Columns tool panel, keep the panel visible */
+        :is(.ag-theme-alpine, .ag-theme-quartz, .ag-theme-balham)
+          .ag-column-tool-panel .ag-column-select-filter .ag-input-wrapper {
           display: none !important;
+        }
+        :is(.ag-theme-alpine, .ag-theme-quartz, .ag-theme-balham)
+          .ag-column-tool-panel .ag-column-select-filter {
           height: 0 !important;
-          padding: 0 !important;
           margin: 0 !important;
+          padding: 0 !important;
+          overflow: hidden !important;
         }
       `}</style>
 
@@ -377,6 +379,7 @@ export default function CosmosReports() {
                 onFirstDataRendered={onFirstDataRendered}
                 suppressHorizontalScroll={false}
                 onGridReady={(params) => {
+                  // ensure the sidebar is present and open
                   params.api.setSideBarVisible(true);
                   params.api.openToolPanel("filters");
                 }}
@@ -391,9 +394,7 @@ export default function CosmosReports() {
                       iconKey: "columns",
                       toolPanel: "agColumnsToolPanel",
                       toolPanelParams: {
-                        // Official switch to remove the search box (some versions ignore it,
-                        // hence the tiny CSS override above).
-                        suppressColumnFilter: true,
+                        suppressColumnFilter: true, // hide built-in search (some builds ignore; CSS above enforces)
                       },
                     },
                     {
