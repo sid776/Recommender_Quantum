@@ -1,0 +1,136 @@
+#dq_reports.py
+from typing import Any, Dict, List, Optional
+from datetime import date
+import pandas as pd
+
+from core.db import DBConnection
+
+CATALOG = "niwa_dev.gold"
+
+VIEW_BY_REPORT = {
+    "summary":      f"{CATALOG}.vw_smbc_marx_validation_summary_report",
+    "staleness":    f"{CATALOG}.vw_smbc_marx_validation_staleness_report",
+    "outliers":     f"{CATALOG}.vw_smbc_marx_validation_outlier_report",
+    "availability": f"{CATALOG}.vw_smbc_marx_validation_availability_report",
+    "reasonability":f"{CATALOG}.vw_smbc_marx_validation_reasonability_report",
+    "schema":       f"{CATALOG}.vw_smbc_marx_validation_schema_report",
+}
+
+GROUP_COLS = ["rule_type", "book"]
+
+class DQReports:
+    @staticmethod
+    def _sql(view: str, report_date: Optional[date], limit: int) -> str:
+        if report_date:
+            d = report_date.strftime("%Y-%m-%d")
+            return f"""
+                SELECT *
+                FROM {view}
+                WHERE
+                    COALESCE(
+                        CAST(report_date AS DATE),
+                        TO_DATE(CAST(report_date AS STRING), 'yyyyMMdd'),
+                        TO_DATE(CAST(report_date AS STRING), 'yyyy-MM-dd')
+                    ) = TO_DATE('{d}')
+                ORDER BY
+                    COALESCE(
+                        CAST(report_date AS DATE),
+                        TO_DATE(CAST(report_date AS STRING), 'yyyyMMdd'),
+                        TO_DATE(CAST(report_date AS STRING), 'yyyy-MM-dd')
+                    ) DESC
+                LIMIT {limit}
+            """
+        else:
+            return f"""
+                SELECT *
+                FROM {view}
+                ORDER BY
+                    COALESCE(
+                        CAST(report_date AS DATE),
+                        TO_DATE(CAST(report_date AS STRING), 'yyyyMMdd'),
+                        TO_DATE(CAST(report_date AS STRING), 'yyyy-MM-dd')
+                    ) DESC
+                LIMIT {limit}
+            """
+
+    @staticmethod
+    def _normalize(df: pd.DataFrame) -> pd.DataFrame:
+        renames: Dict[str, str] = {}
+        if "table" in df.columns and "table_name" not in df.columns:
+            renames["table"] = "table_name"
+        if renames:
+            df = df.rename(columns=renames)
+        for c in GROUP_COLS:
+            if c not in df.columns:
+                df[c] = None
+        return df
+
+    @staticmethod
+    def get_all(report_date: Optional[date] = None, limit: int = 500) -> List[Dict[str, Any]]:
+        frames: List[pd.DataFrame] = []
+        with DBConnection() as db:
+            for key, view in VIEW_BY_REPORT.items():
+                q = DQReports._sql(view, report_date, limit)
+                df = db.execute(q, df=True)
+                if df is None or df.empty:
+                    continue
+                df = DQReports._normalize(df)
+                df.insert(0, "report_type", key)
+                frames.append(df)
+        if not frames:
+            return []
+        out = pd.concat(frames, ignore_index=True, sort=False)
+        return out.to_dict(orient="records")
+###########################
+#dq_stats.py
+# backend/services/api/dq_stats.py
+from __future__ import annotations
+from datetime import date, datetime
+from decimal import Decimal
+from typing import Any, Dict, List, Optional
+
+from ninja import Router
+
+from objects.dq_reports import DQReports
+
+router = Router(tags=["DQ Reports"])
+
+def _to_jsonable(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    import math
+    import numpy as np
+    import pandas as pd
+
+    out: List[Dict[str, Any]] = []
+    for r in rows or []:
+        safe: Dict[str, Any] = {}
+        for k, v in (r or {}).items():
+            # normalize pandas/NumPy/Decimal/dates
+            if v is not None and hasattr(pd, "isna") and pd.isna(v):
+                v = None
+            elif isinstance(v, (np.integer,)):
+                v = int(v)
+            elif isinstance(v, (np.floating,)):
+                v = float(v)
+                if math.isnan(v) or math.isinf(v):
+                    v = None
+            elif isinstance(v, (np.bool_,)):
+                v = bool(v)
+            elif isinstance(v, (pd.Timestamp, datetime)):
+                v = v.isoformat()
+            elif isinstance(v, date):
+                v = v.isoformat()
+            elif isinstance(v, Decimal):
+                v = float(v)
+            safe[str(k)] = v
+        out.append(safe)
+    return out
+
+@router.get("/dq/combined", response=List[Dict[str, Any]])
+def dq_combined(
+    request,
+    report_date: Optional[date] = None,
+    limit: int = 500,
+):
+    rows = DQReports.get_all(report_date=report_date, limit=limit)
+
+    return _to_jsonable(rows)
