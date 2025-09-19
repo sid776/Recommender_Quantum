@@ -295,6 +295,20 @@ export default function CosmosReports() {
 
   return (
     <Box className="overflow-hidden" height="calc(100vh - 70px)">
+      {/* CSS safety net to hide the Columns tool panel search box across AG Grid versions */}
+      <style>{`
+        .ag-theme-alpine .ag-column-tool-panel .ag-column-select-filter,
+        .ag-theme-alpine .ag-column-select-header,
+        .ag-theme-alpine .ag-column-tool-panel .ag-input-wrapper,
+        .ag-theme-alpine .ag-column-tool-panel .ag-input-field,
+        .ag-theme-alpine .ag-column-tool-panel .ag-input-field-input[placeholder="Search..."] {
+          display: none !important;
+          height: 0 !important;
+          padding: 0 !important;
+          margin: 0 !important;
+        }
+      `}</style>
+
       <FormProvider {...methods}>
         <form className="flex flex-col gap-3 h-full">
           <div className="p-4 bg-white shadow-md rounded-lg flex flex-col h-full">
@@ -317,7 +331,6 @@ export default function CosmosReports() {
                     />
                   </div>
                 </div>
-                {/* funnel toggles side panel */}
                 <i
                   title="Columns & Filters"
                   className="ph ph-funnel cursor-pointer text-green-700"
@@ -378,8 +391,9 @@ export default function CosmosReports() {
                       iconKey: "columns",
                       toolPanel: "agColumnsToolPanel",
                       toolPanelParams: {
-                        suppressColumnFilter: true, // <- hides the "Search..." input
-                        suppressSyncLayoutWithGrid: false,
+                        // Official switch to remove the search box (some versions ignore it,
+                        // hence the tiny CSS override above).
+                        suppressColumnFilter: true,
                       },
                     },
                     {
