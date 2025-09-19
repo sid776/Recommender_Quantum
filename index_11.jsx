@@ -17,7 +17,7 @@ const DETAIL_FIELDS = [
   { header: "Risk Factor Value", keys: ["risk_factor_value", "risk factor value", "rf_value", "value"] },
   { header: "Mean Value", keys: ["mean_value", "mean value", "mean"] },
   { header: "Z Score", keys: ["z score", "z_score", "zscore"] },
-  { header: "Std Value", keys: ["std value", "std_value", "std", "stddev", "std_dev"] },
+  { header: "Std Value", keys: ["std value", "std_value", "std"] },
   { header: "Is Outlier", keys: ["is outlier", "is_outlier", "outlier"] },
 ];
 
@@ -30,24 +30,11 @@ function pickKey(row, candidates) {
   return null;
 }
 
-function findKeyInRows(rows, candidates) {
-  if (!rows?.length) return null;
-  for (const r of rows) {
-    const k = pickKey(r, candidates);
-    if (k) return k;
-  }
-  return null;
-}
-
 function getYearKeys(rows) {
   if (!rows?.length) return ["2021", "2022", "2023", "2024", "2025"];
-  const years = Array.from(
-    new Set(
-      rows.flatMap((r) =>
-        Object.keys(r || {}).filter((k) => /^\d{4}$/.test(k) && Number(k) >= MIN_YEAR),
-      ),
-    ),
-  ).sort();
+  const years = Object.keys(rows[0] || {})
+    .filter((k) => /^\d{4}$/.test(k) && Number(k) >= MIN_YEAR)
+    .sort();
   return years.length ? years : ["2021", "2022", "2023", "2024", "2025"];
 }
 
@@ -63,19 +50,16 @@ function normalizeRows(rows, YEARS) {
     const reportDate = o.report_date || "";
     const dateKeys = ["as_of_date", "as_of_dt", "asofdate", "asof_dt"];
     const dk = pickKey(o, dateKeys);
-    if (dk && isNilOrEmpty(o[dk])) o[dk] = reportDate || "—";
+    if (dk && (o[dk] === null || o[dk] === undefined || o[dk] === "")) {
+      o[dk] = reportDate || "—";
+    }
 
-    const numericNames = [
-      "mean_value", "mean value", "mean",
-      "z score", "z_score", "zscore",
-      "std value", "std_value", "std", "stddev", "std_dev",
-      "risk_factor_value", "rf_value", "value",
-    ];
+    const numericNames = ["mean_value", "mean value", "mean", "z score", "z_score", "zscore", "std value", "std_value", "std"];
     for (const nm of numericNames) {
       const k = pickKey(o, [nm]);
       if (k) {
         const n = Number(o[k]);
-        o[k] = Number.isFinite(n) ? n : (o[k] == null ? 0 : o[k]);
+        o[k] = Number.isFinite(n) ? n : 0;
       }
     }
 
@@ -95,38 +79,30 @@ function normalizeRows(rows, YEARS) {
 function buildColumnDefs(rows, YEARS) {
   const base = ["report_date", "risk_factor_id", "rule_type", "book"];
 
+  const sample = rows?.[0] || {};
   const detailMap = DETAIL_FIELDS.map((df) => {
-    const k = findKeyInRows(rows, df.keys);
+    const k = pickKey(sample, df.keys);
     return { header: df.header, key: k };
   }).filter((d) => !!d.key);
 
   const ordered = [...base, ...YEARS, ...detailMap.map((d) => d.key)];
   const seen = new Set(ordered);
 
-  const allRowKeys = rows?.length
-    ? Array.from(new Set(rows.flatMap((r) => Object.keys(r || {}))))
+  // IMPORTANT: drop any 4-digit year < MIN_YEAR from extras
+  const extras = rows?.length
+    ? Object.keys(rows[0]).filter((k) => {
+        if (seen.has(k)) return false;
+        if (/^\d{4}$/.test(k) && Number(k) < MIN_YEAR) return false; // <- filters 2007..2020
+        return true;
+      })
     : [];
-
-  const extras = allRowKeys.filter((k) => {
-    if (seen.has(k)) return false;
-    if (/^\d{4}$/.test(k) && Number(k) < MIN_YEAR) return false;
-    return true;
-  });
 
   const allKeys = [...ordered, ...extras];
 
   return allKeys.map((k) => {
     const isYear = YEARS.includes(k);
-    const detail = detailMap.find((d) => d.key === k);
-    const isDetail = !!detail;
-    const headerName = isDetail ? detail.header : prettify(k);
-
-    const isLikelyNumber =
-      isYear ||
-      ["z score", "std value", "mean value", "risk factor value"].includes(lc(headerName)) ||
-      /^\d{4}$/.test(k);
-
-    const isLikelyDate = lc(headerName).includes("date") || lc(k).endsWith("_dt");
+    const isDetail = detailMap.some((d) => d.key === k);
+    const headerName = isDetail ? detailMap.find((d) => d.key === k)?.header || prettify(k) : prettify(k);
 
     const col = {
       headerName,
@@ -135,8 +111,15 @@ function buildColumnDefs(rows, YEARS) {
       resizable: true,
       headerTooltip: headerName,
       suppressHeaderMenuButton: false,
-      filter: isLikelyNumber ? "agNumberColumnFilter" : isLikelyDate ? "agDateColumnFilter" : "agTextColumnFilter",
-      minWidth: isYear ? 110 : 160,
+      filter:
+        isYear ||
+        ["z score", "std value", "mean value"].includes(lc(headerName)) ||
+        /^\d{4}$/.test(k)
+          ? "agNumberColumnFilter"
+          : lc(headerName).includes("date")
+          ? "agDateColumnFilter"
+          : "agTextColumnFilter",
+      minWidth: isYear ? 110 : 170,
     };
 
     if (k === "rule_type" || k === "book") {
@@ -170,6 +153,7 @@ export default function CosmosReports() {
 
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [showFloatingFilters, setShowFloatingFilters] = useState(false);
 
   const gridRef = useRef(null);
   const fetchedOnce = useRef(false);
@@ -210,15 +194,6 @@ export default function CosmosReports() {
       }
     } finally {
       setLoading(false);
-      requestAnimationFrame(() => {
-        const api = gridRef.current?.api;
-        const columnApi = gridRef.current?.columnApi;
-        if (!api || !columnApi) return;
-        const ids = [];
-        columnApi.getColumns()?.forEach((c) => ids.push(c.getColId()));
-        columnApi.autoSizeColumns(ids, true);
-        api.setGridOption("suppressAggFuncInHeader", true);
-      });
     }
   }
 
@@ -238,6 +213,7 @@ export default function CosmosReports() {
     const api = gridRef.current?.api;
     const columnApi = gridRef.current?.columnApi;
     if (!api || !columnApi) return;
+
     const ids = [];
     columnApi.getColumns()?.forEach((c) => ids.push(c.getColId()));
     columnApi.autoSizeColumns(ids, true);
@@ -245,48 +221,8 @@ export default function CosmosReports() {
     api.setGridOption("suppressAggFuncInHeader", true);
   };
 
-  const toggleSideBar = () => {
-    const api = gridRef.current?.api;
-    if (!api) return;
-    const visible = api.isSideBarVisible();
-    api.setSideBarVisible(!visible);
-    if (!visible) api.openToolPanel("filters");
-  };
-
-  // Hard-kill the Columns search if the build ignores the flags
-  const nukeColumnPanelSearch = () => {
-    const roots = document.querySelectorAll(
-      ".ag-column-tool-panel .ag-column-select-filter, " +           // newer builds
-      ".ag-column-tool-panel .ag-column-select-header, " +           // some builds wrap it
-      ".ag-column-tool-panel input[placeholder='Search...']"         // fallback
-    );
-    roots.forEach((el) => {
-      el.style.display = "none";
-      el.style.height = "0";
-      el.style.margin = "0";
-      el.style.padding = "0";
-      el.style.overflow = "hidden";
-    });
-  };
-
   return (
     <Box className="overflow-hidden" height="calc(100vh - 70px)">
-      {/* CSS removal for all AG Grid themes (alpine/quartz/balham) */}
-      <style>{`
-        :is(.ag-theme-alpine, .ag-theme-quartz, .ag-theme-balham)
-          .ag-column-tool-panel .ag-column-select-filter,
-        :is(.ag-theme-alpine, .ag-theme-quartz, .ag-theme-balham)
-          .ag-column-tool-panel .ag-column-select-header,
-        :is(.ag-theme-alpine, .ag-theme-quartz, .ag-theme-balham)
-          .ag-column-tool-panel input[placeholder="Search..."] {
-          display: none !important;
-          height: 0 !important;
-          margin: 0 !important;
-          padding: 0 !important;
-          overflow: hidden !important;
-        }
-      `}</style>
-
       <FormProvider {...methods}>
         <form className="flex flex-col gap-3 h-full">
           <div className="p-4 bg-white shadow-md rounded-lg flex flex-col h-full">
@@ -308,10 +244,10 @@ export default function CosmosReports() {
                   </div>
                 </div>
                 <i
-                  title="Columns & Filters"
+                  title="Global Filter"
                   className="ph ph-funnel cursor-pointer text-green-700"
                   style={{ fontSize: 28 }}
-                  onClick={toggleSideBar}
+                  onClick={() => setShowFloatingFilters((v) => !v)}
                 />
               </div>
             </div>
@@ -339,6 +275,7 @@ export default function CosmosReports() {
                   enableRowGroup: true,
                   enablePivot: true,
                   enableCharts: true,
+                  floatingFilter: showFloatingFilters,
                 }}
                 autoGroupColumnDef={{
                   headerName: "Group",
@@ -346,43 +283,13 @@ export default function CosmosReports() {
                   pinned: "left",
                 }}
                 headerHeight={42}
+                floatingFiltersHeight={36}
                 loading={loading}
-                animateRows
-                enableRangeSelection
-                suppressAggFuncInHeader
+                animateRows={true}
+                enableRangeSelection={true}
+                suppressAggFuncInHeader={true}
                 onFirstDataRendered={onFirstDataRendered}
                 suppressHorizontalScroll={false}
-                onGridReady={(params) => {
-                  params.api.setSideBarVisible(true);
-                  params.api.openToolPanel("filters");
-                  // final sweep after the panel renders
-                  setTimeout(nukeColumnPanelSearch, 0);
-                }}
-                sideBar={{
-                  position: "right",
-                  hiddenByDefault: false,
-                  defaultToolPanel: "filters",
-                  toolPanels: [
-                    {
-                      id: "columns",
-                      labelDefault: "Columns",
-                      iconKey: "columns",
-                      toolPanel: "agColumnsToolPanel",
-                      toolPanelParams: {
-                        suppressColumnFilter: true,     // official switch
-                      },
-                    },
-                    {
-                      id: "filters",
-                      labelDefault: "Filters",
-                      iconKey: "filter",
-                      toolPanel: "agFiltersToolPanel",
-                      toolPanelParams: {
-                        suppressFilterSearch: true,     // ensure no search there either
-                      },
-                    },
-                  ],
-                }}
               />
             </Box>
           </div>
