@@ -29,7 +29,6 @@ function pickKey(row, candidates) {
   for (const k of Object.keys(row)) if (candSet.has(lc(k))) return k;
   return null;
 }
-
 function findKeyInRows(rows, candidates) {
   if (!rows?.length) return null;
   for (const r of rows) {
@@ -38,33 +37,23 @@ function findKeyInRows(rows, candidates) {
   }
   return null;
 }
-
 function getYearKeys(rows) {
   if (!rows?.length) return ["2021", "2022", "2023", "2024", "2025"];
   const years = Array.from(
     new Set(
       rows.flatMap((r) =>
-        Object.keys(r || {}).filter((k) => /^\d{4}$/.test(k) && Number(k) >= MIN_YEAR)
-      )
-    )
+        Object.keys(r || {}).filter((k) => /^\d{4}$/.test(k) && Number(k) >= MIN_YEAR),
+    )),
   ).sort();
   return years.length ? years : ["2021", "2022", "2023", "2024", "2025"];
 }
-
 function normalizeRows(rows, YEARS) {
   return (rows || []).map((r) => {
     const o = { ...(r || {}) };
-
-    YEARS.forEach((y) => {
-      const n = Number(o[y]);
-      o[y] = Number.isFinite(n) ? n : 0;
-    });
-
+    YEARS.forEach((y) => { const n = Number(o[y]); o[y] = Number.isFinite(n) ? n : 0; });
     const reportDate = o.report_date || "";
-    const dateKeys = ["as_of_date", "as_of_dt", "asofdate", "asof_dt"];
-    const dk = pickKey(o, dateKeys);
+    const dk = pickKey(o, ["as_of_date", "as_of_dt", "asofdate", "asof_dt"]);
     if (dk && isNilOrEmpty(o[dk])) o[dk] = reportDate || "—";
-
     const numericNames = [
       "mean_value","mean value","mean",
       "z score","z_score","zscore",
@@ -73,46 +62,30 @@ function normalizeRows(rows, YEARS) {
     ];
     for (const nm of numericNames) {
       const k = pickKey(o, [nm]);
-      if (k) {
-        const n = Number(o[k]);
-        o[k] = Number.isFinite(n) ? n : (o[k] == null ? 0 : o[k]);
-      }
+      if (k) { const n = Number(o[k]); o[k] = Number.isFinite(n) ? n : (o[k] == null ? 0 : o[k]); }
     }
-
-    const boolNames = ["is outlier", "is_outlier", "outlier"];
+    const boolNames = ["is outlier","is_outlier","outlier"];
     for (const nm of boolNames) {
       const k = pickKey(o, [nm]);
-      if (k) {
-        const n = Number(o[k]);
-        if (!Number.isFinite(n)) o[k] = o[k] ? 1 : 0;
-      }
+      if (k) { const n = Number(o[k]); if (!Number.isFinite(n)) o[k] = o[k] ? 1 : 0; }
     }
-
     return o;
   });
 }
-
 function buildColumnDefs(rows, YEARS) {
   const base = ["report_date", "risk_factor_id", "rule_type", "book"];
-
   const detailMap = DETAIL_FIELDS.map((df) => {
     const k = findKeyInRows(rows, df.keys);
     return { header: df.header, key: k };
   }).filter((d) => !!d.key);
-
   const ordered = [...base, ...YEARS, ...detailMap.map((d) => d.key)];
   const seen = new Set(ordered);
-
-  const allRowKeys = rows?.length
-    ? Array.from(new Set(rows.flatMap((r) => Object.keys(r || {}))))
-    : [];
-
+  const allRowKeys = rows?.length ? Array.from(new Set(rows.flatMap((r) => Object.keys(r || {})))) : [];
   const extras = allRowKeys.filter((k) => {
     if (seen.has(k)) return false;
     if (/^\d{4}$/.test(k) && Number(k) < MIN_YEAR) return false;
     return true;
   });
-
   const allKeys = [...ordered, ...extras];
 
   return allKeys.map((k) => {
@@ -120,46 +93,22 @@ function buildColumnDefs(rows, YEARS) {
     const detail = detailMap.find((d) => d.key === k);
     const isDetail = !!detail;
     const headerName = isDetail ? detail.header : prettify(k);
-
     const isLikelyNumber =
-      isYear ||
-      ["z score", "std value", "mean value", "risk factor value"].includes(lc(headerName)) ||
-      /^\d{4}$/.test(k);
-
+      isYear || ["z score", "std value", "mean value", "risk factor value"].includes(lc(headerName)) || /^\d{4}$/.test(k);
     const isLikelyDate = lc(headerName).includes("date") || lc(k).endsWith("_dt");
 
     const col = {
-      headerName,
-      field: k,
-      sortable: true,
-      resizable: true,
-      headerTooltip: headerName,
+      headerName, field: k, sortable: true, resizable: true, headerTooltip: headerName,
       suppressHeaderMenuButton: false,
       filter: isLikelyNumber ? "agNumberColumnFilter" : isLikelyDate ? "agDateColumnFilter" : "agTextColumnFilter",
       minWidth: isYear ? 110 : 160,
     };
-
-    if (k === "rule_type" || k === "book") {
-      col.rowGroup = true;
-      col.hide = true;
-    }
-
-    if (isYear) {
-      col.type = "numericColumn";
-      col.aggFunc = "sum";
-      col.valueParser = (p) => Number(p.newValue ?? 0);
-    }
-
+    if (k === "rule_type" || k === "book") { col.rowGroup = true; col.hide = true; }
+    if (isYear) { col.type = "numericColumn"; col.aggFunc = "sum"; col.valueParser = (p) => Number(p.newValue ?? 0); }
     if (isDetail) {
-      col.valueGetter = (params) => {
-        if (!params || !params.node) return null;
-        if (params.node.group) return null;
-        return params.data ? params.data[k] : null;
-      };
-      col.aggFunc = null;
-      col.suppressAggFuncInHeader = true;
+      col.valueGetter = (p) => (p?.node?.group ? null : p?.data ? p.data[k] : null);
+      col.aggFunc = null; col.suppressAggFuncInHeader = true;
     }
-
     return col;
   });
 }
@@ -183,29 +132,20 @@ export default function CosmosReports() {
   async function fetchData(dateStr) {
     setLoading(true);
     try {
-      const url =
-        dateStr && dateStr.length
-          ? `${API_ENDPOINT}?report_date=${encodeURIComponent(dateStr)}&limit=500`
-          : `${API_ENDPOINT}?limit=500`;
+      const url = dateStr && dateStr.length
+        ? `${API_ENDPOINT}?report_date=${encodeURIComponent(dateStr)}&limit=500`
+        : `${API_ENDPOINT}?limit=500`;
       const res = await fetch(url, { headers: { Accept: "application/json" } });
-      if (!res.ok) {
-        setRows([]);
-        return;
-      }
+      if (!res.ok) { setRows([]); return; }
       const json = await res.json().catch(() => []);
       const data = Array.isArray(json) ? json : Array.isArray(json?.rows) ? json.rows : [];
       setRows(data || []);
-
       if ((!dateStr || !dateStr.length) && data?.length) {
         const raw = data[0]?.report_date ?? "";
         let normalized = "";
-        if (typeof raw === "string" && /^\d{8}$/.test(raw)) {
-          normalized = `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`;
-        } else if (typeof raw === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw)) {
-          normalized = raw;
-        } else if (raw instanceof Date) {
-          normalized = raw.toISOString().slice(0, 10);
-        }
+        if (typeof raw === "string" && /^\d{8}$/.test(raw)) normalized = `${raw.slice(0,4)}-${raw.slice(4,6)}-${raw.slice(6,8)}`;
+        else if (typeof raw === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw)) normalized = raw;
+        else if (raw instanceof Date) normalized = raw.toISOString().slice(0,10);
         if (normalized) setValue("report_date", normalized, { shouldDirty: false });
       }
     } finally {
@@ -227,7 +167,6 @@ export default function CosmosReports() {
     fetchedOnce.current = true;
     fetchData("");
   }, []);
-
   useEffect(() => {
     if (!fetchedOnce.current) return;
     if (!reportDate) return;
@@ -245,22 +184,19 @@ export default function CosmosReports() {
     api.setGridOption("suppressAggFuncInHeader", true);
   };
 
-  // keep sidebar visible (buttons showing) but no panel open initially
+  // Ensure side bar buttons are visible (but panel closed) on load
   const onGridReady = (params) => {
-    params.api.setSideBarVisible(true);  // shows the buttons
-    params.api.closeToolPanel();         // no panel open by default
+    params.api.setSideBarVisible(true);  // show the vertical buttons
+    params.api.closeToolPanel();         // do not open any panel by default
   };
 
-  // funnel toggles the panel: if closed, open Filters; if open, close it
+  // Funnel toggles the panel (opens Filters if currently closed)
   const onFunnelClick = () => {
     const api = gridRef.current?.api;
     if (!api) return;
-    const currentlyOpen = api.getOpenedToolPanel();
-    if (currentlyOpen) {
-      api.closeToolPanel();
-    } else {
-      api.openToolPanel("filters");
-    }
+    const opened = api.getOpenedToolPanel();
+    if (opened) api.closeToolPanel();
+    else api.openToolPanel("filters");
   };
 
   return (
@@ -308,46 +244,25 @@ export default function CosmosReports() {
                 rowData={normRows}
                 columnDefs={columnDefs}
                 defaultColDef={{
-                  flex: 1,
-                  minWidth: 110,
-                  sortable: true,
-                  filter: true,
-                  resizable: true,
-                  enableValue: true,
-                  enableRowGroup: true,
-                  enablePivot: true,
-                  enableCharts: true,
+                  flex: 1, minWidth: 110, sortable: true, filter: true, resizable: true,
+                  enableValue: true, enableRowGroup: true, enablePivot: true, enableCharts: true,
                   floatingFilter: false,
                 }}
-                autoGroupColumnDef={{
-                  headerName: "Group",
-                  minWidth: 260,
-                  pinned: "left",
-                }}
+                autoGroupColumnDef={{ headerName: "Group", minWidth: 260, pinned: "left" }}
                 headerHeight={42}
                 loading={loading}
                 animateRows
                 enableRangeSelection
                 suppressAggFuncInHeader
                 onFirstDataRendered={onFirstDataRendered}
-                suppressHorizontalScroll={false}
                 onGridReady={onGridReady}
+                suppressHorizontalScroll={false}
                 sideBar={{
                   position: "right",
-                  hiddenByDefault: false, // buttons visible
+                  hiddenByDefault: false,   // buttons visible
                   toolPanels: [
-                    {
-                      id: "columns",
-                      labelDefault: "Columns",
-                      iconKey: "columns",
-                      toolPanel: "agColumnsToolPanel",
-                    },
-                    {
-                      id: "filters",
-                      labelDefault: "Filters",
-                      iconKey: "filter",
-                      toolPanel: "agFiltersToolPanel",
-                    },
+                    { id: "columns", labelDefault: "Columns", iconKey: "columns", toolPanel: "agColumnsToolPanel" },
+                    { id: "filters", labelDefault: "Filters", iconKey: "filter", toolPanel: "agFiltersToolPanel" },
                   ],
                 }}
               />
