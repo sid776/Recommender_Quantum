@@ -99,7 +99,6 @@ function normalizeRows(rows, YEARS) {
   });
 }
 
-/** Decide if a column is numeric-ish based on name */
 function isNumericHeader(headerName, field) {
   const name = lc(headerName);
   return (
@@ -108,7 +107,6 @@ function isNumericHeader(headerName, field) {
   );
 }
 
-/** Build col defs; attach tooltips to first 4–5 numeric-ish columns; make numeric cells clickable */
 function buildColumnDefs(rows, YEARS) {
   const base = ["report_date", "risk_factor_id", "rule_type", "book"];
 
@@ -132,10 +130,8 @@ function buildColumnDefs(rows, YEARS) {
 
   const allKeys = [...ordered, ...extras];
 
-  // Cache error keys found anywhere for tooltips
   const errKeyGlobal = findKeyInRows(rows, ERROR_KEYS);
 
-  // Renderer: underline numeric cells to hint "clickable"
   const clickableRenderer = (params) => {
     const el = document.createElement("span");
     const v = params.value;
@@ -149,7 +145,6 @@ function buildColumnDefs(rows, YEARS) {
     return el;
   };
 
-  // Count numeric-ish columns to flag first 5 for richer tooltip
   let numericSeen = 0;
 
   return allKeys.map((k) => {
@@ -160,7 +155,6 @@ function buildColumnDefs(rows, YEARS) {
     const numericLike = isNumericHeader(headerName, k);
     const dateLike = lc(headerName).includes("date") || lc(k).endsWith("_dt");
 
-    // We’ll attach a richer tooltip to the first five numeric-like columns encountered
     let attachRichTooltip = false;
     if (numericLike && numericSeen < 5) {
       attachRichTooltip = true;
@@ -176,7 +170,6 @@ function buildColumnDefs(rows, YEARS) {
       suppressHeaderMenuButton: false,
       filter: numericLike ? "agNumberColumnFilter" : dateLike ? "agDateColumnFilter" : "agTextColumnFilter",
       minWidth: isYear ? 110 : 160,
-      // tooltip per cell when flagged
       tooltipValueGetter: attachRichTooltip
         ? (p) => {
             if (!p || !p.data) return null;
@@ -191,7 +184,6 @@ function buildColumnDefs(rows, YEARS) {
             return `Date: ${rd}\nRF: ${rf}\nRule: ${rt}\nBook: ${bk}\nCol: ${headerName}\nVal: ${val}${errLine}`;
           }
         : undefined,
-      // renderer: make numeric cells look clickable
       cellRenderer: numericLike ? clickableRenderer : undefined,
     };
 
@@ -218,24 +210,20 @@ function buildColumnDefs(rows, YEARS) {
   });
 }
 
-/** Build a “far-right columns” list to show on the detail page */
 function getFarRightColumns(sampleRow, YEARS) {
   if (!sampleRow) return [];
   const base = new Set(["report_date", "risk_factor_id", "rule_type", "book", ...YEARS]);
   const keys = Object.keys(sampleRow);
-  // heuristics: skip base; pick the last 8 columns (often far-right in the grid)
   const extra = keys.filter((k) => !base.has(k));
   return extra.slice(-8);
 }
 
-/** Open a simple new tab with dummy metrics + some far-right columns from the row */
 function openDetailPage(row, colId, value, farRightCols) {
   const rf = row?.risk_factor_id ?? "—";
   const rt = row?.rule_type ?? "—";
   const bk = row?.book ?? "—";
   const rd = row?.report_date ?? "—";
 
-  // Dummy metrics
   const details = [
     { label: "Metric", value: colId },
     { label: "Cell Value", value: value ?? "—" },
@@ -331,7 +319,6 @@ export default function CosmosReports() {
   const normRows = useMemo(() => normalizeRows(rows, YEARS), [rows, YEARS]);
   const columnDefs = useMemo(() => buildColumnDefs(normRows, YEARS), [normRows, YEARS]);
 
-  // Precompute far-right columns from the first row to use in the detail page
   const farRightCols = useMemo(() => getFarRightColumns(normRows?.[0] || null, YEARS), [normRows, YEARS]);
 
   const reportDate = useWatch({ control, name: "report_date" });
@@ -406,7 +393,6 @@ export default function CosmosReports() {
     params.api.closeToolPanel();
   };
 
-  // Click any numeric cell → open dummy detail page
   const onCellClicked = (ev) => {
     if (!ev || ev.node?.group) return;
     const value = ev.value;
@@ -418,7 +404,7 @@ export default function CosmosReports() {
 
   return (
     <Box className="overflow-hidden" height="calc(100vh - 70px)">
-      {/* Center the side buttons vertically */}
+      {/* center the side buttons vertically */}
       <style>{`
         .custom-grid .ag-side-buttons {
           display: flex;
@@ -480,8 +466,6 @@ export default function CosmosReports() {
                   enablePivot: true,
                   enableCharts: true,
                   floatingFilter: showFloatingFilters,
-                  // enable tooltips globally; we feed custom strings per col
-                  tooltipValueGetter: (p) => p?.colDef?.tooltipValueGetter ? p.colDef.tooltipValueGetter(p) : null,
                 }}
                 autoGroupColumnDef={{
                   headerName: "Group",
