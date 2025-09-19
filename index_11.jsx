@@ -247,6 +247,14 @@ export default function CosmosReports() {
     api.setGridOption("suppressAggFuncInHeader", true);
   };
 
+  const toggleSideBar = () => {
+    const api = gridRef.current?.api;
+    if (!api) return;
+    const visible = api.isSideBarVisible();
+    api.setSideBarVisible(!visible);
+    if (!visible) api.openToolPanel("filters");
+  };
+
   return (
     <Box className="overflow-hidden" height="calc(100vh - 70px)">
       <FormProvider {...methods}>
@@ -254,19 +262,28 @@ export default function CosmosReports() {
           <div className="p-4 bg-white shadow-md rounded-lg flex flex-col h-full">
             <div className="flex items-center justify-between mb-3">
               <div className="text-lg font-bold">DQ Reports</div>
-              <div className="flex items-center gap-2">
-                <span className="text-base font-semibold text-gray-700">COB:</span>
-                <div className="w-[220px]">
-                  <InputFieldset
-                    id="report_date"
-                    label=""
-                    fieldName="report_date"
-                    tooltipMsg="COB"
-                    type="date"
-                    required
-                    registerOptions={{ required: "required" }}
-                  />
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-base font-semibold text-gray-700">COB:</span>
+                  <div className="w-[220px]">
+                    <InputFieldset
+                      id="report_date"
+                      label=""
+                      fieldName="report_date"
+                      tooltipMsg="COB"
+                      type="date"
+                      required
+                      registerOptions={{ required: "required" }}
+                    />
+                  </div>
                 </div>
+                {/* funnel icon on the RIGHT toggles the side panel */}
+                <i
+                  title="Columns & Filters"
+                  className="ph ph-funnel cursor-pointer text-green-700"
+                  style={{ fontSize: 28 }}
+                  onClick={toggleSideBar}
+                />
               </div>
             </div>
 
@@ -313,7 +330,7 @@ export default function CosmosReports() {
                     { id: "filters",  labelDefault: "Filters",  iconKey: "filter",  toolPanel: "agFiltersToolPanel" },
                   ],
                   position: "right",
-                  hiddenByDefault: false,
+                  hiddenByDefault: true, // start collapsed; funnel toggles it
                 }}
               />
             </Box>
