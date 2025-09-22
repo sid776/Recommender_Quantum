@@ -190,7 +190,7 @@ function buildColumnDefs(rows, YEARS) {
     if (isDetail) {
       col.valueGetter = (params) => {
         if (!params || !params.node) return null;
-        if (params.node.group) return null;
+        if (params.node.group) return null; // groups don’t show leaf detail
         return params.data ? params.data[k] : null;
       };
       col.aggFunc = null;
@@ -218,37 +218,38 @@ export default function CosmosReports() {
 
   const reportDate = useWatch({ control, name: "report_date" });
 
-  async function fetchData(dateStr, opts = { bootstrap: false }) {
+  async function fetchData(dateStr) {
     setLoading(true);
     try {
       const url =
         dateStr && dateStr.length
           ? `${API_ENDPOINT}?report_date=${encodeURIComponent(dateStr)}&limit=500`
           : `${API_ENDPOINT}?limit=500`;
-
       const res = await fetch(url, { headers: { Accept: "application/json" } });
-      if (!res.ok) { setRows([]); return; }
-
+      if (!res.ok) {
+        setRows([]);
+        return;
+      }
       const json = await res.json().catch(() => []);
       const data = Array.isArray(json) ? json : Array.isArray(json?.rows) ? json.rows : [];
       setRows(data || []);
 
-      // BOOTSTRAP: first load → compute latest across all known date fields, then hard-refetch for that date
-      if (opts.bootstrap && data?.length) {
+      // >>>>>>>>>>>> ONLY CHANGE: compute latest across all date fields, then set & refetch
+      if ((!dateStr || !dateStr.length) && data?.length) {
         const keys = ["report_date", "as_of_date", "as_of_dt", "cob_date"];
         const allDates = [];
         for (const r of data) for (const k of keys) if (r?.[k]) allDates.push(r[k]);
         const latest = maxDateStr(allDates);
         if (latest) {
           setValue("report_date", latest, { shouldDirty: false });
-          // do a second fetch locked to that date so the grid shows only the freshest day
           const lockUrl = `${API_ENDPOINT}?report_date=${encodeURIComponent(latest)}&limit=500`;
-          const r2 = await fetch(lockUrl, { headers: { Accept: "application/json" } });
-          const j2 = await r2.json().catch(() => []);
-          const d2 = Array.isArray(j2) ? j2 : Array.isArray(j2?.rows) ? j2.rows : [];
-          setRows(d2 || data);
+          const res2 = await fetch(lockUrl, { headers: { Accept: "application/json" } });
+          const json2 = await res2.json().catch(() => []);
+          const data2 = Array.isArray(json2) ? json2 : Array.isArray(json2?.rows) ? json2.rows : [];
+          if (data2?.length) setRows(data2);
         }
       }
+      // <<<<<<<<<<<< ONLY CHANGE
     } finally {
       setLoading(false);
       requestAnimationFrame(() => {
@@ -266,7 +267,7 @@ export default function CosmosReports() {
   useEffect(() => {
     if (fetchedOnce.current) return;
     fetchedOnce.current = true;
-    fetchData("", { bootstrap: true }); // <-- first load: fetch all, compute latest, refetch that date
+    fetchData(""); // bootstrap fetch, compute latest, refetch locked to that date
   }, []);
 
   useEffect(() => {
@@ -289,7 +290,7 @@ export default function CosmosReports() {
 
   const onGridReady = (params) => {
     params.api.setSideBarVisible(true);
-    params.api.closeToolPanel();
+    params.api.closeToolPanel(); // buttons visible, panel closed by default
   };
 
   return (
