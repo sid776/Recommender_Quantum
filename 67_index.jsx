@@ -13,7 +13,7 @@ const lc = (s) => String(s || "").toLowerCase();
 const prettify = (k) => String(k).replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 const isNilOrEmpty = (v) => v == null || v === "";
 
-/* Always show these, then populate from any candidate key present in the row */
+/* Always show these, populated from first matching key found in the data */
 const PREFERRED_FIELDS = [
   { header: "Rule Type",       keys: ["rule_type", "ruletype"] },
   { header: "Risk Factor Id",  keys: ["risk_factor_id", "risk factor id", "rf_id", "riskfactorid"] },
@@ -26,20 +26,28 @@ const PREFERRED_FIELDS = [
   { header: "Unique Tag",      keys: ["unique_tag", "unique tag", "uniquetag"] },
 ];
 
-/* helpers */
 function pickKey(row, candidates) {
   if (!row) return null;
   const cand = new Set((candidates || []).map(lc));
   for (const k of Object.keys(row)) if (cand.has(lc(k))) return k;
   return null;
 }
-function getFromAny(row, keys) {
-  if (!row) return undefined;
-  const k = pickKey(row, keys);
-  return k ? row[k] : undefined;
+function findKeyInRows(rows, candidates) {
+  if (!rows?.length) return null;
+  const cand = new Set((candidates || []).map(lc));
+  // prefer exact column-name matches that appear most often
+  const tally = new Map();
+  for (const r of rows) {
+    for (const k of Object.keys(r || {})) {
+      if (cand.has(lc(k))) tally.set(k, (tally.get(k) || 0) + 1);
+    }
+  }
+  let best = null, max = 0;
+  for (const [k, cnt] of tally.entries()) if (cnt > max) { best = k; max = cnt; }
+  return best;
 }
 
-/* default-to-latest helpers */
+/* latest-date helpers for defaulting COB */
 function parseYMD(v) {
   if (!v && v !== 0) return null;
   const s = String(v).trim().replace(/['"]/g, "");
@@ -57,21 +65,19 @@ function maxDateStr(dates) {
   return max;
 }
 
-/* normalize row data */
+/* normalize rows (numbers, booleans, year columns) */
 function normalizeRows(rows) {
   return (rows || []).map((r) => {
     const o = { ...(r || {}) };
 
     // Map Y2021..Y2025 → 2021..2025, keep 0 if missing
     FIXED_YEARS.forEach((y) => {
-      const yKey = y;
-      const yPref = `Y${y}`;
-      const plain = Number(o[yKey]);
-      const fromY = Number(o[yPref]);
-      if (Number.isFinite(plain)) o[yKey] = plain;
-      else if (Number.isFinite(fromY)) o[yKey] = fromY;
-      else o[yKey] = 0;
-      if (yPref in o) delete o[yPref];
+      const yPlain = Number(o[y]);
+      const yPref = Number(o[`Y${y}`]);
+      if (Number.isFinite(yPlain)) o[y] = yPlain;
+      else if (Number.isFinite(yPref)) o[y] = yPref;
+      else o[y] = 0;
+      if (`Y${y}` in o) delete o[`Y${y}`];
     });
 
     // derive hidden book grouping
@@ -84,7 +90,6 @@ function normalizeRows(rows) {
     const dk = pickKey(o, dateKeys);
     if (dk && isNilOrEmpty(o[dk])) o[dk] = reportDate || "—";
 
-    // numeric cleanups
     const numericNames = [
       "mean_value","mean value","mean",
       "z score","z_score","zscore",
@@ -99,7 +104,6 @@ function normalizeRows(rows) {
       }
     }
 
-    // booleans → 0/1
     const boolNames = ["is outlier","is_outlier","outlier"];
     for (const nm of boolNames) {
       const k = pickKey(o, [nm]);
@@ -121,8 +125,15 @@ const aggAvg = (params) => {
   return vals.reduce((a, b) => a + b, 0) / vals.length;
 };
 
-/* build columns: Report Type + Book (group, hidden) → Report Date → Years → Preferred → Extras */
+/* build columns with real data keys resolved for preferred fields */
 function buildColumnDefs(rows) {
+  // Resolve actual keys for every preferred field once, from current dataset
+  const preferredKeyMap = PREFERRED_FIELDS.map((pf) => ({
+    header: pf.header,
+    actualKey: findKeyInRows(rows, pf.keys),
+    keys: pf.keys,
+  }));
+
   const groupCols = [
     { headerName: "Report Type", field: "report_type", rowGroup: true, rowGroupIndex: 0, hide: true },
     { headerName: "Book", field: "__book", rowGroup: true, rowGroupIndex: 1, hide: true },
@@ -150,38 +161,42 @@ function buildColumnDefs(rows) {
     valueParser: (p) => Number(p.newValue ?? 0),
   }));
 
-  // ALWAYS include preferred columns; valueGetter pulls from any candidate key.
-  // Add agg so group rows show something meaningful.
   const numericKeySet = new Set([
     "z_score","zscore","z score",
     "std_value","std value","std","stddev","std_dev",
     "mean_value","mean value","mean",
   ]);
 
-  const preferredCols = PREFERRED_FIELDS.map((pf) => {
-    const isNumeric = pf.keys.some((k) => numericKeySet.has(k));
-    return {
-      headerName: pf.header,
-      valueGetter: (p) => {
-        // leaf rows: pull from data
-        if (p?.data) return getFromAny(p.data, pf.keys);
-        // group rows: let agg fill later
-        return null;
-      },
+  const preferredCols = preferredKeyMap.map(({ header, actualKey, keys }) => {
+    const isNumeric = keys.some((k) => numericKeySet.has(k));
+    // If we resolved an actual key, bind the column field to it directly.
+    // Otherwise fall back to a valueGetter that searches each row.
+    const col = {
+      headerName: header,
       sortable: true,
       resizable: true,
-      headerTooltip: pf.header,
+      headerTooltip: header,
       minWidth: 160,
       filter: isNumeric ? "agNumberColumnFilter" : "agTextColumnFilter",
       aggFunc: isNumeric ? aggAvg : aggFirst,
     };
+    if (actualKey) {
+      col.field = actualKey;
+    } else {
+      col.valueGetter = (p) => {
+        if (!p?.data) return null;
+        const k = pickKey(p.data, keys);
+        return k ? p.data[k] : null;
+      };
+    }
+    return col;
   });
 
-  // Extras (keys not already shown)
+  // Extras after preferred, but exclude anything already shown
   const seen = new Set([
     "report_type", "__book", "book", "book_nm", "report_date",
     ...FIXED_YEARS,
-    ...PREFERRED_FIELDS.flatMap((pf) => pf.keys),
+    ...preferredKeyMap.map((x) => x.actualKey).filter(Boolean),
   ]);
 
   const allRowKeys = rows?.length ? Array.from(new Set(rows.flatMap((r) => Object.keys(r || {})))) : [];
@@ -197,7 +212,7 @@ function buildColumnDefs(rows) {
       aggFunc: aggFirst,
     }));
 
-  // Final order
+  // Final order: group (hidden) → report date → years → preferred → extras
   return [...groupCols, reportDateCol, ...yearCols, ...preferredCols, ...extras];
 }
 
@@ -228,8 +243,6 @@ export default function CosmosReports() {
       const json = await res.json().catch(() => []);
       const data = Array.isArray(json) ? json : Array.isArray(json?.rows) ? json.rows : [];
       setRows(data || []);
-
-      // default COB to latest date present in payload
       if ((!dateStr || !dateStr.length) && data?.length) {
         const latest = maxDateStr(data.map((r) => r?.report_date).filter(Boolean));
         if (latest) setValue("report_date", latest, { shouldDirty: false });
@@ -271,13 +284,19 @@ export default function CosmosReports() {
     api.setGridOption("suppressAggFuncInHeader", true);
   };
 
+  // Keep side buttons visible on the right, closed by default (as requested earlier)
+  const onGridReady = (params) => {
+    params.api.setSideBarVisible(true);
+    params.api.closeToolPanel();
+  };
+
   return (
     <Box className="overflow-hidden" height="calc(100vh - 70px)">
       <style>{`
         .custom-grid .ag-side-buttons {
           display: flex;
           flex-direction: column;
-          justify-content: center; /* right side buttons vertically centered */
+          justify-content: center;
         }
       `}</style>
 
@@ -349,14 +368,16 @@ export default function CosmosReports() {
                 enableRangeSelection
                 suppressAggFuncInHeader
                 onFirstDataRendered={onFirstDataRendered}
+                onGridReady={onGridReady}
                 suppressHorizontalScroll={false}
                 sideBar={{
                   position: "right",
+                  hiddenByDefault: false,
                   toolPanels: [
                     { id: "columns", labelDefault: "Columns", iconKey: "columns", toolPanel: "agColumnsToolPanel" },
                     { id: "filters", labelDefault: "Filters", iconKey: "filter", toolPanel: "agFiltersToolPanel" },
                   ],
-                  defaultToolPanel: null, // buttons visible, panel closed
+                  defaultToolPanel: null,
                 }}
               />
             </Box>
