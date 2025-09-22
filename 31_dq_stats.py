@@ -131,9 +131,12 @@ def _get_records_for(cls: type, rd: Optional[date], limit: int) -> List[Dict[str
         for kw in DATE_KWS:
             if _supports(fn, kw):
                 try:
-                    return _df_to_records(fn(**{kw: rd, **common}))
+                    recs = _df_to_records(fn(**{kw: rd, **common}))
+                    if recs:                       # <<< only return when non-empty
+                        return recs
                 except:
                     pass
+        # if all date-kw attempts produced empty/failed, fall through
 
     try:
         recs = _df_to_records(fn(**common))
@@ -169,5 +172,13 @@ def dq_combined(request, report_date: Optional[date] = None, limit: int = 500):
         for r in recs:
             r.setdefault("report_type", name)
         rows.extend(recs)
+
+    # If nothing matched the resolved rd, retry once with no date to avoid blank 200.
+    if not rows:
+        for name, cls in SECTIONS:
+            recs = _get_records_for(cls, None, limit)
+            for r in recs:
+                r.setdefault("report_type", name)
+            rows.extend(recs)
 
     return _to_jsonable(rows)
