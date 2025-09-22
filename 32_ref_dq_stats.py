@@ -3,10 +3,17 @@ from __future__ import annotations
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
+import inspect
 
 from ninja import Router
 from core.db import DBConnection
-from objects.dq_reports import DQReports
+
+from objects.dq.summary import DQSummary
+from objects.dq.staleness import DQStaleness
+from objects.dq.outliers import DQOutliers
+from objects.dq.availability import DQAvailability
+from objects.dq.reasonability import DQReasonability
+from objects.dq.schema import DQSchema
 
 router = Router(tags=["DQ Reports"])
 
@@ -19,6 +26,16 @@ VIEWS = [
     f"{CATALOG}.vw_smbc_marx_validation_reasonability_report",
     f"{CATALOG}.vw_smbc_marx_validation_schema_report",
 ]
+SECTIONS = [
+    ("summary",       DQSummary),
+    ("staleness",     DQStaleness),
+    ("outliers",      DQOutliers),
+    ("availability",  DQAvailability),
+    ("reasonability", DQReasonability),
+    ("schema",        DQSchema),
+]
+DATE_KWS = ("report_date", "as_of_date", "as_of_dt", "cob_date")
+
 
 def _to_jsonable(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     import math, numpy as np, pandas as pd
@@ -46,8 +63,29 @@ def _to_jsonable(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         out.append(safe)
     return out
 
+
+def _norm_date(v: Any) -> Optional[date]:
+    if v is None:
+        return None
+    if isinstance(v, date) and not isinstance(v, datetime):
+        return v
+    if isinstance(v, datetime):
+        return v.date()
+    s = str(v).strip().strip("'").strip('"')
+    if len(s) == 10 and s[4] == "-" and s[7] == "-":
+        try: return date(int(s[0:4]), int(s[5:7]), int(s[8:10]))
+        except: return None
+    if len(s) == 8 and s.isdigit():
+        try: return date(int(s[0:4]), int(s[4:6]), int(s[6:8]))
+        except: return None
+    return None
+
+
 def _latest_report_date_sql() -> Optional[date]:
-    norm = "COALESCE(CAST(report_date AS DATE), TO_DATE(CAST(report_date AS STRING),'yyyyMMdd'), TO_DATE(CAST(report_date AS STRING),'yyyy-MM-dd'))"
+    norm = ("COALESCE("
+            "CAST(report_date AS DATE),"
+            "TO_DATE(CAST(report_date AS STRING),'yyyyMMdd'),"
+            "TO_DATE(CAST(report_date AS STRING),'yyyy-MM-dd'))")
     unions = " UNION ALL ".join([f"SELECT MAX({norm}) d FROM {v}" for v in VIEWS])
     sql = f"SELECT MAX(d) AS max_d FROM ({unions}) t"
     try:
@@ -55,16 +93,72 @@ def _latest_report_date_sql() -> Optional[date]:
             df = db.execute(sql, df=True)
         if df is None or df.empty:
             return None
-        val = df.iloc[0, 0]
-        if isinstance(val, datetime):
-            return val.date()
-        return val
+        return _norm_date(df.iloc[0, 0])
     except:
         return None
 
+
+def _df_to_records(df) -> List[Dict[str, Any]]:
+    if df is None:
+        return []
+    to_dict = getattr(df, "to_dict", None)
+    return to_dict(orient="records") if callable(to_dict) else []
+
+
+def _supports(fn, name: str) -> bool:
+    try:
+        return name in inspect.signature(fn).parameters
+    except:
+        return False
+
+
+def _get_records_for(cls: type, rd: Optional[date], limit: int) -> List[Dict[str, Any]]:
+    fn = getattr(cls, "get_dataframe", None)
+    if not callable(fn):
+        return []
+    common = dict(limit=limit, pyspark=False)
+    if _supports(fn, "date_formats"):
+        common["date_formats"] = ["yyyyMMdd", "yyyy-MM-dd"]
+
+    if rd:
+        for kw in DATE_KWS:
+            if _supports(fn, kw):
+                try:
+                    recs = _df_to_records(fn(**{kw: rd, **common}))
+                    if recs:
+                        return recs
+                except:
+                    pass
+        try:
+            recs = _df_to_records(fn(**common))
+            want = rd
+            return [r for r in recs if _norm_date(r.get("report_date")) == want]
+        except:
+            return []
+    try:
+        return _df_to_records(fn(**common))
+    except:
+        return []
+
+
 @router.get("/dq/combined", response=List[Dict[str, Any]])
 def dq_combined(request, report_date: Optional[date] = None, limit: int = 500):
-    if report_date is None:
-        report_date = _latest_report_date_sql()
-    rows = DQReports.get_all(report_date=report_date, limit=limit)
+    rd = report_date or _latest_report_date_sql()
+
+    rows: List[Dict[str, Any]] = []
+    for name, cls in SECTIONS:
+        recs = _get_records_for(cls, rd, limit)
+        for r in recs:
+            r.setdefault("report_type", name)
+        rows.extend(recs)
+
+    # If nothing matched that rd (e.g., sparse partitions), retry once without a date
+    # so the UI still receives data and can pick the latest from payload.
+    if not rows and report_date is None:
+        for name, cls in SECTIONS:
+            recs = _get_records_for(cls, None, limit)
+            for r in recs:
+                r.setdefault("report_type", name)
+            rows.extend(recs)
+
     return _to_jsonable(rows)
