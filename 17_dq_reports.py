@@ -15,8 +15,10 @@ VIEW_BY_REPORT: Dict[str, str] = {
     "schema":        f"{CATALOG}.vw_smbc_marx_validation_schema_report",
 }
 
-USE_SQL_FALLBACK = os.getenv("USE_DQREPORTS_SQL_FALLBACK", "0").lower() in ("1", "true", "yes")
 DATE_KWS = ("report_date", "cob_date", "as_of_date", "as_of_dt")
+
+# Default TRUE so fallback works in all envs unless explicitly disabled
+USE_SQL_FALLBACK = os.getenv("USE_DQREPORTS_SQL_FALLBACK", "1").lower() in ("1", "true", "yes")
 
 def _to_records(df) -> List[Dict[str, Any]]:
     if df is None:
@@ -52,12 +54,6 @@ def _row_date(r: Dict[str, Any]) -> Optional[date]:
             return _parse_date(r.get(k))
     return None
 
-def _filter_to_date(rows: List[Dict[str, Any]], target: Optional[date]) -> List[Dict[str, Any]]:
-    if not target:
-        return rows
-    tgt = target
-    return [r for r in rows if _row_date(r) == tgt]
-
 def _supports_kw(obj_cls: type, kw: str) -> bool:
     fn = getattr(obj_cls, "get_dataframe", None)
     if not callable(fn):
@@ -69,15 +65,16 @@ def _supports_kw(obj_cls: type, kw: str) -> bool:
         return False
 
 def _fetch_by_object(obj_cls: type, report_date: Optional[date], limit: int) -> List[Dict[str, Any]]:
+    """Object-first fetch with robust kw handling + date_formats support."""
     fn = getattr(obj_cls, "get_dataframe", None)
     if not callable(fn):
         return []
 
     common = dict(limit=limit, pyspark=False)
-    if _supports_kw(obj_cls, "order"):
-        common["order"] = ["report_date__desc"]
+    if _supports_kw(obj_cls, "date_formats"):
+        common["date_formats"] = ["yyyyMMdd", "yyyy-MM-dd"]
 
-    # 1) Try each known date kw explicitly
+    # 1) If a date is provided, try all likely kw names
     if report_date:
         for kw in DATE_KWS:
             if _supports_kw(obj_cls, kw):
@@ -89,25 +86,25 @@ def _fetch_by_object(obj_cls: type, report_date: Optional[date], limit: int) -> 
                 except Exception:
                     pass
 
-    # 2) Try unfiltered slice (ordered desc) and client-side filter to the target date
+    # 2) No date filter (or none succeeded) – grab a slice
     try:
         df = fn(**common)
         recs = _to_records(df)
         if recs:
+            # If a date was requested, client-filter to that date
             if report_date:
-                recs = _filter_to_date(recs, report_date)
+                recs = [r for r in recs if _row_date(r) == report_date]
             if recs:
                 return recs
     except Exception:
         pass
 
-    # 3) Try a wider slice
-    wider = dict(common, limit=max(limit, 5000))
+    # 3) Wider slice as a last attempt
     try:
-        df = fn(**wider)
+        df = fn(limit=max(limit, 5000), pyspark=False, **({"date_formats": ["yyyyMMdd", "yyyy-MM-dd"]} if _supports_kw(obj_cls, "date_formats") else {}))
         recs = _to_records(df)
-        if recs and report_date:
-            recs = _filter_to_date(recs, report_date)
+        if report_date:
+            recs = [r for r in recs if _row_date(r) == report_date]
         return recs or []
     except Exception:
         return []
@@ -115,15 +112,12 @@ def _fetch_by_object(obj_cls: type, report_date: Optional[date], limit: int) -> 
 def _latest_date_via_objects() -> Optional[date]:
     try:
         from objects.dq.summary import DQSummary
-        rows = _fetch_by_object(DQSummary, None, limit=200)
+        rows = _fetch_by_object(DQSummary, None, limit=500)
         if not rows:
             return None
-        # First row is newest if order desc applied; otherwise compute max
-        d = _row_date(rows[0])
-        if d:
-            return d
+        # Prefer max date from the slice
         dates = [_row_date(r) for r in rows]
-        dates = [x for x in dates if x]
+        dates = [d for d in dates if d]
         return max(dates) if dates else None
     except Exception:
         return None
@@ -135,7 +129,6 @@ def _latest_date_via_sql() -> Optional[date]:
         from core.db import DBConnection
     except Exception:
         return None
-
     norm = "COALESCE(CAST(report_date AS DATE), TO_DATE(CAST(report_date AS STRING), 'yyyyMMdd'), TO_DATE(CAST(report_date AS STRING), 'yyyy-MM-dd'))"
     parts = [f"SELECT MAX({norm}) AS d FROM {v}" for v in VIEW_BY_REPORT.values()]
     sql = f"SELECT MAX(d) AS max_d FROM ({' UNION ALL '.join(parts)}) t"
@@ -174,6 +167,7 @@ def _simple_sql_section(section: str, report_date: Optional[date], limit: int) -
 class DQReports:
     @staticmethod
     def get_all(report_date: Optional[date] = None, limit: int = 500) -> List[Dict[str, Any]]:
+        # Import here to avoid import cycles
         from objects.dq.summary import DQSummary
         from objects.dq.staleness import DQStaleness
         from objects.dq.outliers import DQOutliers
@@ -190,18 +184,15 @@ class DQReports:
             ("schema",        DQSchema),
         ]
 
-        # Resolve latest date if not provided (try objects first, then SQL if enabled)
+        # If no date provided, pick the latest (objects first, then SQL if enabled)
         effective_date = report_date or _latest_date_via_objects() or _latest_date_via_sql()
 
         out: List[Dict[str, Any]] = []
-
         for name, obj_cls in sections:
             rows = _fetch_by_object(obj_cls, effective_date, limit)
             if not rows and USE_SQL_FALLBACK:
                 rows = _simple_sql_section(name, effective_date, limit)
-
             for r in rows:
                 r.setdefault("report_type", name)
             out.extend(rows)
-
         return out
