@@ -51,23 +51,18 @@ function getYearKeys(rows) {
   return years.length ? years : ["2021", "2022", "2023", "2024", "2025"];
 }
 
-// --- date helpers (beefed up to catch MM/DD/YYYY too) ---
+// --- date helpers ---
 function parseYMD(anyVal) {
   if (!anyVal && anyVal !== 0) return null;
   const s = String(anyVal).trim().replace(/['"]/g, "");
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;                  // YYYY-MM-DD
-  if (/^\d{8}$/.test(s)) return `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`; // YYYYMMDD
-
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {                        // MM/DD/YYYY
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;                                // YYYY-MM-DD
+  if (/^\d{8}$/.test(s)) return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`; // YYYYMMDD
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {                                      // MM/DD/YYYY
     const [m, d, y] = s.split("/");
     return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
   }
-
-  // last-resort parse (e.g. Date objects serialized oddly)
   const dt = new Date(s);
   if (!Number.isNaN(dt.getTime())) return dt.toISOString().slice(0, 10);
-
   return null;
 }
 
@@ -80,7 +75,16 @@ function maxDateStr(dates) {
   }
   return max;
 }
-// ------------------------------------------------
+
+// NEW: prefer report_date, else as_of_date/as_of_dt/cob_date (first found)
+function pickDateFromRow(r) {
+  const keys = ["report_date", "as_of_date", "as_of_dt", "cob_date"];
+  for (const k of keys) {
+    if (r && r[k] != null && r[k] !== "") return r[k];
+  }
+  return null;
+}
+// ---------------------------------------------
 
 function normalizeRows(rows, YEARS) {
   return (rows || []).map((r) => {
@@ -231,7 +235,10 @@ export default function CosmosReports() {
       setRows(data || []);
 
       if ((!dateStr || !dateStr.length) && data?.length) {
-        const allDates = data.map((r) => r?.report_date).filter(Boolean);
+        // CHANGED: compute latest across multiple possible date fields
+        const allDates = data
+          .map((r) => pickDateFromRow(r))
+          .filter((v) => v !== null && v !== undefined && v !== "");
         const latest = maxDateStr(allDates);
         if (latest) setValue("report_date", latest, { shouldDirty: false });
       }
