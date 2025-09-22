@@ -1,6 +1,6 @@
 # backend/services/api/dq_stats.py
 from __future__ import annotations
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 import inspect
@@ -64,7 +64,7 @@ def _to_jsonable(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return out
 
 
-def _norm_date_any(v: Any) -> Optional[date]:
+def _norm_date(v: Any) -> Optional[date]:
     if v is None:
         return None
     if isinstance(v, date) and not isinstance(v, datetime):
@@ -100,8 +100,7 @@ def _latest_report_date_sql() -> Optional[date]:
             df = db.execute(sql, df=True)
         if df is None or df.empty:
             return None
-        val = df.iloc[0, 0]
-        return _norm_date_any(val)
+        return _norm_date(df.iloc[0, 0])
     except:
         return None
 
@@ -128,70 +127,41 @@ def _get_records_for(cls: type, rd: Optional[date], limit: int) -> List[Dict[str
     if _supports(fn, "date_formats"):
         common["date_formats"] = ["yyyyMMdd", "yyyy-MM-dd"]
 
-    # 1) try passing date via any supported kw
     if rd:
         for kw in DATE_KWS:
             if _supports(fn, kw):
                 try:
-                    recs = _df_to_records(fn(**{kw: rd, **common}))
-                    if recs:
-                        return recs
+                    return _df_to_records(fn(**{kw: rd, **common}))
                 except:
-                    continue
+                    pass
 
-    # 2) no-date call, filter in-memory by rd
     try:
         recs = _df_to_records(fn(**common))
         if rd:
             want = rd
-            recs = [r for r in recs if _norm_date_any(r.get("report_date")) == want]
-        if recs:
-            return recs
-    except:
-        pass
-
-    # 3) widen slice
-    try:
-        recs = _df_to_records(fn(**{**common, "limit": max(limit, 5000)}))
-        if rd:
-            want = rd
-            recs = [r for r in recs if _norm_date_any(r.get("report_date")) == want]
+            recs = [r for r in recs if _norm_date(r.get("report_date")) == want]
         return recs
     except:
         return []
 
 
-def _prev_working_day(d: date) -> date:
-    wd = d.weekday()  # 0=Mon..6=Sun
-    if wd == 6:  # Sun -> Fri
-        return d - timedelta(days=2)
-    if wd == 5:  # Sat -> Fri
-        return d - timedelta(days=1)
-    return d
-
-
-def _resolve_default_date(limit_probe: int = 2000) -> date:
-    rd = _latest_report_date_sql()
-    if rd:
-        return rd
+def _latest_report_date_objects(limit_probe: int = 2000) -> Optional[date]:
     latest: Optional[date] = None
     for _, cls in SECTIONS:
         try:
             recs = _get_records_for(cls, None, limit_probe)
             for r in recs:
-                d = _norm_date_any(r.get("report_date"))
+                d = _norm_date(r.get("report_date"))
                 if d and (latest is None or d > latest):
                     latest = d
         except:
             continue
-    if latest:
-        return latest
-    return _prev_working_day(date.today())
+    return latest
 
 
 @router.get("/dq/combined", response=List[Dict[str, Any]])
 def dq_combined(request, report_date: Optional[date] = None, limit: int = 500):
-    rd = report_date or _resolve_default_date()
+    rd = report_date or _latest_report_date_sql() or _latest_report_date_objects()
 
     rows: List[Dict[str, Any]] = []
     for name, cls in SECTIONS:
@@ -199,15 +169,5 @@ def dq_combined(request, report_date: Optional[date] = None, limit: int = 500):
         for r in recs:
             r.setdefault("report_type", name)
         rows.extend(recs)
-
-    # if empty for resolved date, fall back once to prev working day
-    if not rows:
-        alt = _prev_working_day(rd)
-        if alt != rd:
-            for name, cls in SECTIONS:
-                recs = _get_records_for(cls, alt, limit)
-                for r in recs:
-                    r.setdefault("report_type", name)
-                rows.extend(recs)
 
     return _to_jsonable(rows)
