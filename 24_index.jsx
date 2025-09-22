@@ -51,10 +51,10 @@ function getYearKeys(rows) {
   return years.length ? years : ["2021", "2022", "2023", "2024", "2025"];
 }
 
-// --- date helpers ---
-function parseYMD(anyVal) {
-  if (!anyVal && anyVal !== 0) return null;
-  const s = String(anyVal).trim().replace(/['"]/g, "");
+// ---- date helpers (robust parsing + max) ----
+function parseYMD(v) {
+  if (v === null || v === undefined) return null;
+  const s = String(v).trim().replace(/['"]/g, "");
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
   if (/^\d{8}$/.test(s)) return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`;
   if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
@@ -70,11 +70,11 @@ function maxDateStr(dates) {
   for (const d of dates) {
     const norm = parseYMD(d);
     if (!norm) continue;
-    if (!max || norm > max) max = norm; // YYYY-MM-DD lexicographic compare
+    if (!max || norm > max) max = norm; // YYYY-MM-DD lexicographic works
   }
   return max;
 }
-// ---------------------
+// ---------------------------------------------
 
 function normalizeRows(rows, YEARS) {
   return (rows || []).map((r) => {
@@ -190,7 +190,7 @@ function buildColumnDefs(rows, YEARS) {
     if (isDetail) {
       col.valueGetter = (params) => {
         if (!params || !params.node) return null;
-        if (params.node.group) return null; // groups don’t show leaf detail
+        if (params.node.group) return null;
         return params.data ? params.data[k] : null;
       };
       col.aggFunc = null;
@@ -218,7 +218,7 @@ export default function CosmosReports() {
 
   const reportDate = useWatch({ control, name: "report_date" });
 
-  async function fetchData(dateStr) {
+  async function fetchData(dateStr, opts = { bootstrap: false }) {
     setLoading(true);
     try {
       const url =
@@ -226,30 +226,27 @@ export default function CosmosReports() {
           ? `${API_ENDPOINT}?report_date=${encodeURIComponent(dateStr)}&limit=500`
           : `${API_ENDPOINT}?limit=500`;
       const res = await fetch(url, { headers: { Accept: "application/json" } });
-      if (!res.ok) {
-        setRows([]);
-        return;
-      }
+      if (!res.ok) { setRows([]); return; }
       const json = await res.json().catch(() => []);
       const data = Array.isArray(json) ? json : Array.isArray(json?.rows) ? json.rows : [];
       setRows(data || []);
 
-      // >>>>>>>>>>>> ONLY CHANGE: compute latest across all date fields, then set & refetch
-      if ((!dateStr || !dateStr.length) && data?.length) {
+      if (opts.bootstrap && data?.length) {
         const keys = ["report_date", "as_of_date", "as_of_dt", "cob_date"];
         const allDates = [];
         for (const r of data) for (const k of keys) if (r?.[k]) allDates.push(r[k]);
         const latest = maxDateStr(allDates);
         if (latest) {
-          setValue("report_date", latest, { shouldDirty: false });
+          // hard reset the form to defeat browser autofill/sticky values
+          methods.reset({ report_date: latest });
+          // lock fetch to that exact date
           const lockUrl = `${API_ENDPOINT}?report_date=${encodeURIComponent(latest)}&limit=500`;
-          const res2 = await fetch(lockUrl, { headers: { Accept: "application/json" } });
-          const json2 = await res2.json().catch(() => []);
-          const data2 = Array.isArray(json2) ? json2 : Array.isArray(json2?.rows) ? json2.rows : [];
-          if (data2?.length) setRows(data2);
+          const r2 = await fetch(lockUrl, { headers: { Accept: "application/json" } });
+          const j2 = await r2.json().catch(() => []);
+          const d2 = Array.isArray(j2) ? j2 : Array.isArray(j2?.rows) ? j2.rows : [];
+          setRows(d2?.length ? d2 : data);
         }
       }
-      // <<<<<<<<<<<< ONLY CHANGE
     } finally {
       setLoading(false);
       requestAnimationFrame(() => {
@@ -267,7 +264,7 @@ export default function CosmosReports() {
   useEffect(() => {
     if (fetchedOnce.current) return;
     fetchedOnce.current = true;
-    fetchData(""); // bootstrap fetch, compute latest, refetch locked to that date
+    fetchData("", { bootstrap: true });
   }, []);
 
   useEffect(() => {
@@ -280,7 +277,6 @@ export default function CosmosReports() {
     const api = gridRef.current?.api;
     const columnApi = gridRef.current?.columnApi;
     if (!api || !columnApi) return;
-
     const ids = [];
     columnApi.getColumns()?.forEach((c) => ids.push(c.getColId()));
     columnApi.autoSizeColumns(ids, true);
@@ -290,7 +286,7 @@ export default function CosmosReports() {
 
   const onGridReady = (params) => {
     params.api.setSideBarVisible(true);
-    params.api.closeToolPanel(); // buttons visible, panel closed by default
+    params.api.closeToolPanel();
   };
 
   return (
@@ -314,6 +310,7 @@ export default function CosmosReports() {
                   <span className="text-base font-semibold text-gray-700">COB:</span>
                   <div className="w-[220px]">
                     <InputFieldset
+                      key={reportDate || "init"}      // force the input to re-render with our value
                       id="report_date"
                       label=""
                       fieldName="report_date"
@@ -321,6 +318,7 @@ export default function CosmosReports() {
                       type="date"
                       required
                       registerOptions={{ required: "required" }}
+                      inputProps={{ autoComplete: "off" }} // defeat browser autofill
                     />
                   </div>
                 </div>
