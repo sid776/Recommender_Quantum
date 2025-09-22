@@ -30,9 +30,9 @@ DATE_FIELDS = ("report_date", "as_of_date", "as_of_dt", "cob_date")
 
 def _to_jsonable(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     import math, numpy as np, pandas as pd
-    out = []
+    out: List[Dict[str, Any]] = []
     for r in rows or []:
-        safe = {}
+        safe: Dict[str, Any] = {}
         for k, v in (r or {}).items():
             if v is not None and hasattr(pd, "isna") and pd.isna(v):
                 v = None
@@ -54,7 +54,7 @@ def _parse_date_any(v: Any) -> Optional[date]:
     if isinstance(v, date) and not isinstance(v, datetime): return v
     if isinstance(v, datetime): return v.date()
     s = str(v).strip().strip("'").strip('"')
-    if len(s) == 10 and s[4] == "-" and s[7] == "-":
+    if len(s) >= 10 and s[4:5] == "-" and s[7:8] == "-":
         try: return date(int(s[0:4]), int(s[5:7]), int(s[8:10]))
         except: return None
     if len(s) == 8 and s.isdigit():
@@ -68,20 +68,31 @@ def _df_to_records(df) -> List[Dict[str, Any]]:
     return to_dict(orient="records") if callable(to_dict) else []
 
 
+def _max_date_in_records(recs: List[Dict[str, Any]]) -> Optional[date]:
+    latest: Optional[date] = None
+    for r in recs or []:
+        for f in DATE_FIELDS:
+            d = _parse_date_any(r.get(f))
+            if d and (latest is None or d > latest):
+                latest = d
+    return latest
+
+
 def _latest_date_across_objects() -> Optional[date]:
     latest: Optional[date] = None
     for _, cls in SECTIONS:
         fn = getattr(cls, "get_dataframe", None)
-        if not callable(fn): continue
-        try:
-            recs = _df_to_records(fn(limit=200, pyspark=False))
-            for r in recs:
-                for f in DATE_FIELDS:
-                    d = _parse_date_any(r.get(f))
-                    if d and (latest is None or d > latest):
-                        latest = d
-        except:
+        if not callable(fn): 
             continue
+
+        # look at more rows, not just 1 — ensures we don’t get stuck on April
+        try:
+            recs = _df_to_records(fn(limit=1000, pyspark=False))
+            d = _max_date_in_records(recs)
+            if d and (latest is None or d > latest):
+                latest = d
+        except:
+            pass
     return latest
 
 
@@ -90,6 +101,7 @@ def _get_for_date(cls: type, d: date, limit: int) -> List[Dict[str, Any]]:
     if not callable(fn): return []
     sig = inspect.signature(fn)
     common = dict(limit=limit, pyspark=False)
+
     for kw in DATE_KWS:
         if kw in sig.parameters:
             try:
@@ -97,20 +109,42 @@ def _get_for_date(cls: type, d: date, limit: int) -> List[Dict[str, Any]]:
                 if recs: return recs
             except:
                 pass
-    return []
+
+    try:
+        recs = _df_to_records(fn(**common))
+        keep: List[Dict[str, Any]] = []
+        for r in recs:
+            rd = None
+            for f in DATE_FIELDS:
+                rd = rd or _parse_date_any(r.get(f))
+            if rd == d: keep.append(r)
+        return keep
+    except:
+        return []
 
 
 @router.get("/dq/combined", response=List[Dict[str, Any]])
 def dq_combined(request, report_date: Optional[date] = None, limit: int = 500):
-    # FORCE default to the most recent date
     if report_date is None:
         report_date = _latest_date_across_objects()
 
     rows: List[Dict[str, Any]] = []
-    if report_date:
+    if report_date is not None:
         for name, cls in SECTIONS:
-            recs = _get_for_date(cls, report_date, limit)
-            for r in recs: r.setdefault("report_type", name)
-            rows.extend(recs)
+            try:
+                data = _get_for_date(cls, report_date, limit)
+                for r in data: r.setdefault("report_type", name)
+                rows.extend(data)
+            except:
+                pass
+
+    if not rows:
+        for name, cls in SECTIONS:
+            try:
+                data = _df_to_records(getattr(cls, "get_dataframe")(limit=200, pyspark=False))
+                for r in data: r.setdefault("report_type", name)
+                rows.extend(data)
+            except:
+                pass
 
     return _to_jsonable(rows)
