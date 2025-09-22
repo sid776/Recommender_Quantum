@@ -71,18 +71,9 @@ function maxDateStr(dates) {
   for (const d of dates) {
     const norm = parseYMD(d);
     if (!norm) continue;
-    if (!max || norm > max) max = norm;
+    if (!max || norm > max) max = norm; // lexicographic compare OK for YYYY-MM-DD
   }
   return max;
-}
-
-// NEW: prefer report_date, else as_of_date/as_of_dt/cob_date (first found)
-function pickDateFromRow(r) {
-  const keys = ["report_date", "as_of_date", "as_of_dt", "cob_date"];
-  for (const k of keys) {
-    if (r && r[k] != null && r[k] !== "") return r[k];
-  }
-  return null;
 }
 // ---------------------------------------------
 
@@ -234,11 +225,11 @@ export default function CosmosReports() {
       const data = Array.isArray(json) ? json : Array.isArray(json?.rows) ? json.rows : [];
       setRows(data || []);
 
+      // MINIMAL FIX: take the max across ALL known date fields across ALL rows
       if ((!dateStr || !dateStr.length) && data?.length) {
-        // CHANGED: compute latest across multiple possible date fields
-        const allDates = data
-          .map((r) => pickDateFromRow(r))
-          .filter((v) => v !== null && v !== undefined && v !== "");
+        const allDates = [];
+        const keys = ["report_date", "as_of_date", "as_of_dt", "cob_date"];
+        for (const r of data) for (const k of keys) if (r?.[k]) allDates.push(r[k]);
         const latest = maxDateStr(allDates);
         if (latest) setValue("report_date", latest, { shouldDirty: false });
       }
