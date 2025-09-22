@@ -29,7 +29,6 @@ function pickKey(row, candidates) {
   for (const k of Object.keys(row)) if (candSet.has(lc(k))) return k;
   return null;
 }
-
 function findKeyInRows(rows, candidates) {
   if (!rows?.length) return null;
   for (const r of rows) {
@@ -38,7 +37,6 @@ function findKeyInRows(rows, candidates) {
   }
   return null;
 }
-
 function getYearKeys(rows) {
   if (!rows?.length) return ["2021", "2022", "2023", "2024", "2025"];
   const years = Array.from(
@@ -51,7 +49,7 @@ function getYearKeys(rows) {
   return years.length ? years : ["2021", "2022", "2023", "2024", "2025"];
 }
 
-// ---- date helpers (robust parsing + max) ----
+// robust date parsing + max
 function parseYMD(v) {
   if (v === null || v === undefined) return null;
   const s = String(v).trim().replace(/['"]/g, "");
@@ -74,7 +72,16 @@ function maxDateStr(dates) {
   }
   return max;
 }
-// ---------------------------------------------
+
+// strip ?report_date=... from address bar so stale links don’t force a date
+function stripReportDateFromUrl() {
+  if (typeof window === "undefined") return;
+  const u = new URL(window.location.href);
+  if (u.searchParams.has("report_date")) {
+    u.searchParams.delete("report_date");
+    window.history.replaceState({}, "", u.pathname + (u.searchParams.toString() ? `?${u.searchParams}` : ""));
+  }
+}
 
 function normalizeRows(rows, YEARS) {
   return (rows || []).map((r) => {
@@ -93,20 +100,10 @@ function normalizeRows(rows, YEARS) {
     }
 
     const numericNames = [
-      "mean_value",
-      "mean value",
-      "mean",
-      "z score",
-      "z_score",
-      "zscore",
-      "std value",
-      "std_value",
-      "std",
-      "stddev",
-      "std_dev",
-      "risk_factor_value",
-      "rf_value",
-      "value",
+      "mean_value","mean value","mean",
+      "z score","z_score","zscore",
+      "std value","std_value","std","stddev","std_dev",
+      "risk_factor_value","rf_value","value",
     ];
     for (const nm of numericNames) {
       const k = pickKey(o, [nm]);
@@ -237,14 +234,14 @@ export default function CosmosReports() {
         for (const r of data) for (const k of keys) if (r?.[k]) allDates.push(r[k]);
         const latest = maxDateStr(allDates);
         if (latest) {
-          // hard reset the form to defeat browser autofill/sticky values
-          methods.reset({ report_date: latest });
-          // lock fetch to that exact date
+          setValue("report_date", latest, { shouldDirty: false });
+          setTimeout(() => setValue("report_date", latest, { shouldDirty: false }), 0); // double-tap vs autofill
+
           const lockUrl = `${API_ENDPOINT}?report_date=${encodeURIComponent(latest)}&limit=500`;
           const r2 = await fetch(lockUrl, { headers: { Accept: "application/json" } });
           const j2 = await r2.json().catch(() => []);
           const d2 = Array.isArray(j2) ? j2 : Array.isArray(j2?.rows) ? j2.rows : [];
-          setRows(d2?.length ? d2 : data);
+          if (d2?.length) setRows(d2);
         }
       }
     } finally {
@@ -264,6 +261,11 @@ export default function CosmosReports() {
   useEffect(() => {
     if (fetchedOnce.current) return;
     fetchedOnce.current = true;
+
+    // Prevent old deep-link like ?report_date=2025-07-23 from forcing the date
+    stripReportDateFromUrl();
+
+    // Bootstrap: fetch all, compute latest, then lock to it
     fetchData("", { bootstrap: true });
   }, []);
 
@@ -277,6 +279,7 @@ export default function CosmosReports() {
     const api = gridRef.current?.api;
     const columnApi = gridRef.current?.columnApi;
     if (!api || !columnApi) return;
+
     const ids = [];
     columnApi.getColumns()?.forEach((c) => ids.push(c.getColId()));
     columnApi.autoSizeColumns(ids, true);
@@ -286,7 +289,7 @@ export default function CosmosReports() {
 
   const onGridReady = (params) => {
     params.api.setSideBarVisible(true);
-    params.api.closeToolPanel();
+    params.api.closeToolPanel(); // buttons visible, panel closed by default
   };
 
   return (
@@ -310,7 +313,7 @@ export default function CosmosReports() {
                   <span className="text-base font-semibold text-gray-700">COB:</span>
                   <div className="w-[220px]">
                     <InputFieldset
-                      key={reportDate || "init"}      // force the input to re-render with our value
+                      key={reportDate || "init"}
                       id="report_date"
                       label=""
                       fieldName="report_date"
@@ -318,7 +321,7 @@ export default function CosmosReports() {
                       type="date"
                       required
                       registerOptions={{ required: "required" }}
-                      inputProps={{ autoComplete: "off" }} // defeat browser autofill
+                      inputProps={{ autoComplete: "off" }}
                     />
                   </div>
                 </div>
