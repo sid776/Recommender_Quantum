@@ -1,106 +1,153 @@
-# dq_reports.py
+# backend/services/api/dq_stats.py
+from __future__ import annotations
+from datetime import date, datetime
+from decimal import Decimal
 from typing import Any, Dict, List, Optional
-from datetime import date
-import pandas as pd
+import inspect
 
-from core.db import DBConnection
+from ninja import Router
 
-CATALOG = "niwa_dev.gold"
+from objects.dq.summary import DQSummary
+from objects.dq.staleness import DQStaleness
+from objects.dq.outliers import DQOutliers
+from objects.dq.availability import DQAvailability
+from objects.dq.reasonability import DQReasonability
+from objects.dq.schema import DQSchema
 
-VIEW_BY_REPORT = {
-    "summary":       f"{CATALOG}.vw_smbc_marx_validation_summary_report",
-    "staleness":     f"{CATALOG}.vw_smbc_marx_validation_staleness_report",
-    "outliers":      f"{CATALOG}.vw_smbc_marx_validation_outlier_report",
-    "availability":  f"{CATALOG}.vw_smbc_marx_validation_availability_report",
-    "reasonability": f"{CATALOG}.vw_smbc_marx_validation_reasonability_report",
-    "schema":        f"{CATALOG}.vw_smbc_marx_validation_schema_report",
-}
+router = Router(tags=["DQ Reports"])
 
-GROUP_COLS = ["rule_type", "book"]
+SECTIONS = [
+    ("summary",       DQSummary),
+    ("staleness",     DQStaleness),
+    ("outliers",      DQOutliers),
+    ("availability",  DQAvailability),
+    ("reasonability", DQReasonability),
+    ("schema",        DQSchema),
+]
+
+DATE_FIELDS = ("report_date", "as_of_date", "as_of_dt", "cob_date")
+DATE_KWS    = ("report_date", "as_of_date", "as_of_dt", "cob_date")
 
 
-class DQReports:
+def _to_jsonable(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    import math, numpy as np, pandas as pd
+    out: List[Dict[str, Any]] = []
+    for r in rows or []:
+        safe: Dict[str, Any] = {}
+        for k, v in (r or {}).items():
+            if v is not None and hasattr(pd, "isna") and pd.isna(v): v = None
+            elif isinstance(v, (np.integer,)): v = int(v)
+            elif isinstance(v, (np.floating,)):
+                v = float(v)
+                if math.isnan(v) or math.isinf(v): v = None
+            elif isinstance(v, (np.bool_,)): v = bool(v)
+            elif isinstance(v, (pd.Timestamp, datetime)): v = v.isoformat()
+            elif isinstance(v, date): v = v.isoformat()
+            elif isinstance(v, Decimal): v = float(v)
+            safe[str(k)] = v
+        out.append(safe)
+    return out
 
-    @staticmethod
-    def _normalize(df: pd.DataFrame) -> pd.DataFrame:
-        renames: Dict[str, str] = {}
-        if "table" in df.columns and "table_name" not in df.columns:
-            renames["table"] = "table_name"
-        if renames:
-            df = df.rename(columns=renames)
-        for c in GROUP_COLS:
-            if c not in df.columns:
-                df[c] = None
-        return df
 
-    @staticmethod
-    def _fetch_section(key: str, obj_cls: Optional[type], report_date: Optional[date], limit: int):
-        
-        if obj_cls is not None:
-            try:
-                df = obj_cls.get_dataframe(report_date=report_date, limit=limit, pyspark=False)
-                if df is not None:
-                    recs = df.to_dict(orient="records")
-                    if recs:
-                        for r in recs:
-                            r.setdefault("report_type", key)
-                        return recs
-            except Exception:
-                pass 
+def _parse_date_any(v: Any) -> Optional[date]:
+    if v is None: return None
+    if isinstance(v, date) and not isinstance(v, datetime): return v
+    if isinstance(v, datetime): return v.date()
+    s = str(v).strip().strip("'").strip('"')
+    if len(s) >= 10 and s[4:5] == "-" and s[7:8] == "-":
+        try: return date(int(s[0:4]), int(s[5:7]), int(s[8:10]))
+        except: return None
+    if len(s) == 8 and s.isdigit():
+        try: return date(int(s[0:4]), int(s[4:6]), int(s[6:8]))
+        except: return None
+    return None
 
-       
+
+def _df_to_records(df) -> List[Dict[str, Any]]:
+    to_dict = getattr(df, "to_dict", None)
+    return to_dict(orient="records") if callable(to_dict) else []
+
+
+def _call_get_dataframe(cls: type, **kwargs) -> List[Dict[str, Any]]:
+    fn = getattr(cls, "get_dataframe", None)
+    if not callable(fn): return []
+    # try with order kw first (many objects support this)
+    for kw in ({**kwargs, "order": ["REPORT_DATE__DESC"]},
+               {**kwargs, "order": ["report_date__desc".upper()]} ,
+               kwargs):
         try:
-            with DBConnection() as db:
-                q = DQReports._sql(VIEW_BY_REPORT[key], report_date, limit)
-                df = db.execute(q, df=True)
-                if df is None or df.empty:
-                    return []
-                df = DQReports._normalize(df)
-                df.insert(0, "report_type", key)
-                return df.to_dict(orient="records")
+            return _df_to_records(fn(**kw))
         except Exception:
-            return []
+            continue
+    return []
 
-    @staticmethod
-    def get_all(report_date: Optional[date] = None, limit: int = 500) -> List[Dict[str, Any]]:
-        frames: List[Dict[str, Any]] = []
 
-        from objects.dq.summary import DQSummary
-        from objects.dq.staleness import DQStaleness
-        from objects.dq.outliers import DQOutliers
-        from objects.dq.availability import DQAvailability
-        from objects.dq.reasonability import DQReasonability
-        from objects.dq.schema import DQSchema
+def _latest_date_across_objects() -> Optional[date]:
+    latest: Optional[date] = None
+    for _, cls in SECTIONS:
+        # small probe from each section, unordered fallback is included in _call_get_dataframe
+        recs = _call_get_dataframe(cls, limit=200, pyspark=False)
+        for r in recs:
+            for f in DATE_FIELDS:
+                d = _parse_date_any(r.get(f))
+                if d and (latest is None or d > latest):
+                    latest = d
+    return latest
 
-        sections = {
-            "summary": DQSummary,
-            "staleness": DQStaleness,
-            "outliers": DQOutliers,
-            "availability": DQAvailability,
-            "reasonability": DQReasonability,
-            "schema": DQSchema,
-        }
 
-        for key, obj_cls in sections.items():
-            rows = DQReports._fetch_section(key, obj_cls, report_date, limit)
-            if rows:
-                frames.extend(rows)
+def _get_for_date(cls: type, d: date, limit: int) -> List[Dict[str, Any]]:
+    fn = getattr(cls, "get_dataframe", None)
+    if not callable(fn): return []
+    sig = inspect.signature(fn)
+    common = dict(limit=limit, pyspark=False)
 
-        return frames
-    
-    @staticmethod
-    def _sql(view: str, report_date: Optional[date], limit: int) -> str:
-        norm_expr = """
-            COALESCE(
-                CAST(report_date AS DATE), TO_DATE(CAST(report_date AS STRING), 'yyyyMMdd'), TO_DATE(CAST(report_date AS STRING), 'yyyy-MM-dd')
-            )
-        """
-        if report_date:
-            d = report_date.strftime("%Y-%m-%d")
-            return f"""
-                SELECT * FROM {view} WHERE {norm_expr} = DATE'{d}' 
-                ORDER BY {norm_expr} DESC LIMIT {limit}
-            """
-        return f"""
-            SELECT * FROM {view} ORDER BY {norm_expr} DESC LIMIT {limit}
-        """
+    # 1) pass the date through a supported kw if present
+    for kw in DATE_KWS:
+        if kw in sig.parameters:
+            try:
+                recs = _df_to_records(fn(**{kw: d, **common}))
+                if recs: return recs
+            except Exception:
+                pass
+
+    # 2) otherwise fetch recent and filter in memory by any date field
+    recs = _call_get_dataframe(cls, **common)
+    if not recs: return []
+    keep: List[Dict[str, Any]] = []
+    for r in recs:
+        rd = None
+        for f in DATE_FIELDS:
+            rd = rd or _parse_date_any(r.get(f))
+        if rd == d: keep.append(r)
+    return keep
+
+
+@router.get("/dq/combined", response=List[Dict[str, Any]])
+def dq_combined(request, report_date: Optional[date] = None, limit: int = 500):
+    # resolve to the most recent date across all objects if none supplied
+    if report_date is None:
+        report_date = _latest_date_across_objects()
+
+    rows: List[Dict[str, Any]] = []
+
+    # try to serve the resolved date
+    if report_date is not None:
+        for name, cls in SECTIONS:
+            try:
+                data = _get_for_date(cls, report_date, limit)
+                for r in data: r.setdefault("report_type", name)
+                rows.extend(data)
+            except Exception:
+                pass
+
+    # if nothing matched the chosen date (or no date resolvable), return recent rows so UI isn’t blank
+    if not rows:
+        for name, cls in SECTIONS:
+            try:
+                data = _call_get_dataframe(cls, limit=min(limit, 500), pyspark=False)
+                for r in data: r.setdefault("report_type", name)
+                rows.extend(data)
+            except Exception:
+                pass
+
+    return _to_jsonable(rows)
